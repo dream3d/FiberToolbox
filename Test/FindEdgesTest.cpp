@@ -18,12 +18,12 @@
 
 #include "FiberToolboxTestFileLocations.h"
 
-class FiberToolboxFilterTest
+class FindEdgesTest
 {
 
   public:
-    FiberToolboxFilterTest() {}
-    virtual ~FiberToolboxFilterTest() {}
+    FindEdgesTest() {}
+    virtual ~FindEdgesTest() {}
 
 
   // -----------------------------------------------------------------------------
@@ -32,8 +32,8 @@ class FiberToolboxFilterTest
   void RemoveTestFiles()
   {
   #if REMOVE_TEST_FILES
-    QFile::remove(UnitTest::FiberToolboxFilterTest::TestFile1);
-    QFile::remove(UnitTest::FiberToolboxFilterTest::TestFile2);
+    QFile::remove(UnitTest::FindEdgesTest::TestFile1);
+    QFile::remove(UnitTest::FindEdgesTest::TestFile2);
   #endif
   }
 
@@ -42,8 +42,8 @@ class FiberToolboxFilterTest
   // -----------------------------------------------------------------------------
   int TestFilterAvailability()
   {
-    // Now instantiate the FiberToolboxFilterTest Filter from the FilterManager
-    QString filtName = "FiberToolboxFilter";
+    // Now instantiate the FindEdgesTest Filter from the FilterManager
+    QString filtName = "FindEdges";
     FilterManager* fm = FilterManager::Instance();
     IFilterFactory::Pointer filterFactory = fm->getFactoryForFilter(filtName);
     if (nullptr == filterFactory.get())
@@ -58,14 +58,14 @@ class FiberToolboxFilterTest
   // -----------------------------------------------------------------------------
   //
   // -----------------------------------------------------------------------------
-  int TestFiberToolboxFilterTest()
+  int TestFindEdgesTest()
   {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   /* Please write FiberToolboxFilterTest test code here.
+   /* Please write FindEdgesTest test code here.
     *
     * Your IO test files are:
-    * UnitTest::FiberToolboxFilterTest::TestFile1
-    * UnitTest::FiberToolboxFilterTest::TestFile2
+    * UnitTest::FindEdgesTest::TestFile1
+    * UnitTest::FindEdgesTest::TestFile2
     *
     * SIMPLib provides some macros that will throw exceptions when a test fails
     * and thus report that during testing. These macros are located in the
@@ -94,14 +94,14 @@ class FiberToolboxFilterTest
 
     DREAM3D_REGISTER_TEST( TestFilterAvailability() );
 
-    DREAM3D_REGISTER_TEST( TestFiberToolboxFilterTest() )
+    DREAM3D_REGISTER_TEST( TestFindEdgesTest() )
 
     DREAM3D_REGISTER_TEST( RemoveTestFiles() )
   }
 
   private:
-    FiberToolboxFilterTest(const FiberToolboxFilterTest&); // Copy Constructor Not Implemented
-    void operator=(const FiberToolboxFilterTest&); // Operator '=' Not Implemented
+    FindEdgesTest(const FindEdgesTest&); // Copy Constructor Not Implemented
+    void operator=(const FindEdgesTest&); // Operator '=' Not Implemented
 
 
 };

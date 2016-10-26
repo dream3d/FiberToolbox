@@ -2,7 +2,7 @@
  * Your License or Copyright can go here
  */
 
-#include "FiberToolboxFilter.h"
+#include "FindEdges.h"
 
 #include "SIMPLib/Common/Constants.h"
 
@@ -12,12 +12,12 @@
 #include "FiberToolbox/FiberToolboxVersion.h"
 
 // Include the MOC generated file for this class
-#include "moc_FiberToolboxFilter.cpp"
+#include "moc_FindEdges.cpp"
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-FiberToolboxFilter::FiberToolboxFilter() :
+FindEdges::FindEdges() :
   AbstractFilter()
 {
   initialize();
@@ -27,14 +27,14 @@ FiberToolboxFilter::FiberToolboxFilter() :
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-FiberToolboxFilter::~FiberToolboxFilter()
+FindEdges::~FindEdges()
 {
 }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FiberToolboxFilter::initialize()
+void FindEdges::initialize()
 {
   setErrorCondition(0);
   setCancel(false);
@@ -43,7 +43,7 @@ void FiberToolboxFilter::initialize()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FiberToolboxFilter::setupFilterParameters()
+void FindEdges::setupFilterParameters()
 {
   FilterParameterVector parameters;
 
@@ -53,7 +53,7 @@ void FiberToolboxFilter::setupFilterParameters()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FiberToolboxFilter::dataCheck()
+void FindEdges::dataCheck()
 {
   setErrorCondition(0);
   
@@ -62,7 +62,7 @@ void FiberToolboxFilter::dataCheck()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FiberToolboxFilter::preflight()
+void FindEdges::preflight()
 {
   // These are the REQUIRED lines of CODE to make sure the filter behaves correctly
   setInPreflight(true); // Set the fact that we are preflighting.
@@ -76,7 +76,7 @@ void FiberToolboxFilter::preflight()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FiberToolboxFilter::execute()
+void FindEdges::execute()
 {
   initialize();
   dataCheck();
@@ -98,9 +98,9 @@ void FiberToolboxFilter::execute()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-AbstractFilter::Pointer FiberToolboxFilter::newFilterInstance(bool copyFilterParameters)
+AbstractFilter::Pointer FindEdges::newFilterInstance(bool copyFilterParameters)
 {
-  FiberToolboxFilter::Pointer filter = FiberToolboxFilter::New();
+  FindEdges::Pointer filter = FindEdges::New();
   if(true == copyFilterParameters)
   {
     copyFilterParameterInstanceVariables(filter.get());
@@ -111,13 +111,13 @@ AbstractFilter::Pointer FiberToolboxFilter::newFilterInstance(bool copyFilterPar
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getCompiledLibraryName()
+const QString FindEdges::getCompiledLibraryName()
 { return FiberToolboxConstants::FiberToolboxBaseName; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getBrandingString()
+const QString FindEdges::getBrandingString()
 {
   return "FiberToolbox";
 }
@@ -125,7 +125,7 @@ const QString FiberToolboxFilter::getBrandingString()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getFilterVersion()
+const QString FindEdges::getFilterVersion()
 {
   QString version;
   QTextStream vStream(&version);
@@ -136,18 +136,18 @@ const QString FiberToolboxFilter::getFilterVersion()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getGroupName()
+const QString FindEdges::getGroupName()
 { return SIMPL::FilterGroups::Unsupported; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getSubGroupName()
+const QString FindEdges::getSubGroupName()
 { return "FiberToolbox"; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FiberToolboxFilter::getHumanLabel()
-{ return "FiberToolboxFilter"; }
+const QString FindEdges::getHumanLabel()
+{ return "Find Edges"; }
 

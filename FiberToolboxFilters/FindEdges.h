@@ -10,18 +10,18 @@
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
 
 /**
- * @brief The FiberToolboxFilter class. See [Filter documentation](@ref fibertoolboxfilter) for details.
+ * @brief The FindEdges class. See [Filter documentation](@ref fibertoolboxfilter) for details.
  */
-class FiberToolboxFilter : public AbstractFilter
+class FindEdges : public AbstractFilter
 {
   Q_OBJECT
 
   public:
-    SIMPL_SHARED_POINTERS(FiberToolboxFilter)
-    SIMPL_STATIC_NEW_MACRO(FiberToolboxFilter)
-    SIMPL_TYPE_MACRO_SUPER(FiberToolboxFilter, AbstractFilter)
+    SIMPL_SHARED_POINTERS(FindEdges)
+    SIMPL_STATIC_NEW_MACRO(FindEdges)
+    SIMPL_TYPE_MACRO_SUPER(FindEdges, AbstractFilter)
 
-    virtual ~FiberToolboxFilter();
+    virtual ~FindEdges();
 
 
 
@@ -103,7 +103,7 @@ class FiberToolboxFilter : public AbstractFilter
     void preflightExecuted();
 
   protected:
-    FiberToolboxFilter();
+    FindEdges();
 
     /**
     * @brief dataCheck Checks for the appropriate parameter values and availability of arrays
@@ -116,8 +116,8 @@ class FiberToolboxFilter : public AbstractFilter
     void initialize();
 
   private:
-    FiberToolboxFilter(const FiberToolboxFilter&); // Copy Constructor Not Implemented
-    void operator=(const FiberToolboxFilter&); // Operator '=' Not Implemented
+    FindEdges(const FindEdges&); // Copy Constructor Not Implemented
+    void operator=(const FindEdges&); // Operator '=' Not Implemented
 };
 
-#endif /* _FiberToolboxFilter_H_ */
+#endif /* _FindEdges_H_ */
