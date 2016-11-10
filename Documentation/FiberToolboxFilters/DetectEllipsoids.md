@@ -1,4 +1,4 @@
-FindEdges {#findedges}
+Detect Ellipsoids {#detectellipsoids}
 =============
 
 ## Group (Subgroup) ##

@@ -18,12 +18,12 @@
 
 #include "FiberToolboxTestFileLocations.h"
 
-class FindEdgesTest
+class DetectEllipsoidsTest
 {
 
   public:
-    FindEdgesTest() {}
-    virtual ~FindEdgesTest() {}
+    DetectEllipsoidsTest() {}
+    virtual ~DetectEllipsoidsTest() {}
 
 
   // -----------------------------------------------------------------------------
@@ -32,8 +32,8 @@ class FindEdgesTest
   void RemoveTestFiles()
   {
   #if REMOVE_TEST_FILES
-    QFile::remove(UnitTest::FindEdgesTest::TestFile1);
-    QFile::remove(UnitTest::FindEdgesTest::TestFile2);
+    QFile::remove(UnitTest::DetectEllipsoidsTest::TestFile1);
+    QFile::remove(UnitTest::DetectEllipsoidsTest::TestFile2);
   #endif
   }
 
@@ -42,8 +42,8 @@ class FindEdgesTest
   // -----------------------------------------------------------------------------
   int TestFilterAvailability()
   {
-    // Now instantiate the FindEdgesTest Filter from the FilterManager
-    QString filtName = "FindEdges";
+    // Now instantiate the DetectEllipsoidsTest Filter from the FilterManager
+    QString filtName = "DetectEllipsoids";
     FilterManager* fm = FilterManager::Instance();
     IFilterFactory::Pointer filterFactory = fm->getFactoryForFilter(filtName);
     if (nullptr == filterFactory.get())
@@ -58,14 +58,14 @@ class FindEdgesTest
   // -----------------------------------------------------------------------------
   //
   // -----------------------------------------------------------------------------
-  int TestFindEdgesTest()
+  int TestDetectEllipsoidsTest()
   {
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-   /* Please write FindEdgesTest test code here.
+   /* Please write DetectEllipsoidsTest test code here.
     *
     * Your IO test files are:
-    * UnitTest::FindEdgesTest::TestFile1
-    * UnitTest::FindEdgesTest::TestFile2
+    * UnitTest::DetectEllipsoidsTest::TestFile1
+    * UnitTest::DetectEllipsoidsTest::TestFile2
     *
     * SIMPLib provides some macros that will throw exceptions when a test fails
     * and thus report that during testing. These macros are located in the
@@ -94,14 +94,14 @@ class FindEdgesTest
 
     DREAM3D_REGISTER_TEST( TestFilterAvailability() );
 
-    DREAM3D_REGISTER_TEST( TestFindEdgesTest() )
+    DREAM3D_REGISTER_TEST( TestDetectEllipsoidsTest() )
 
     DREAM3D_REGISTER_TEST( RemoveTestFiles() )
   }
 
   private:
-    FindEdgesTest(const FindEdgesTest&); // Copy Constructor Not Implemented
-    void operator=(const FindEdgesTest&); // Operator '=' Not Implemented
+    DetectEllipsoidsTest(const DetectEllipsoidsTest&); // Copy Constructor Not Implemented
+    void operator=(const DetectEllipsoidsTest&); // Operator '=' Not Implemented
 
 
 };

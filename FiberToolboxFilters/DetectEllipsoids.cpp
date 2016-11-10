@@ -2,7 +2,7 @@
  * Your License or Copyright can go here
  */
 
-#include "FindEdges.h"
+#include "DetectEllipsoids.h"
 
 #include "SIMPLib/Common/Constants.h"
 
@@ -12,12 +12,12 @@
 #include "FiberToolbox/FiberToolboxVersion.h"
 
 // Include the MOC generated file for this class
-#include "moc_FindEdges.cpp"
+#include "moc_DetectEllipsoids.cpp"
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-FindEdges::FindEdges() :
+DetectEllipsoids::DetectEllipsoids() :
   AbstractFilter()
 {
   initialize();
@@ -27,14 +27,14 @@ FindEdges::FindEdges() :
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-FindEdges::~FindEdges()
+DetectEllipsoids::~DetectEllipsoids()
 {
 }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FindEdges::initialize()
+void DetectEllipsoids::initialize()
 {
   setErrorCondition(0);
   setCancel(false);
@@ -43,7 +43,7 @@ void FindEdges::initialize()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FindEdges::setupFilterParameters()
+void DetectEllipsoids::setupFilterParameters()
 {
   FilterParameterVector parameters;
 
@@ -53,7 +53,7 @@ void FindEdges::setupFilterParameters()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FindEdges::dataCheck()
+void DetectEllipsoids::dataCheck()
 {
   setErrorCondition(0);
   
@@ -62,7 +62,7 @@ void FindEdges::dataCheck()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FindEdges::preflight()
+void DetectEllipsoids::preflight()
 {
   // These are the REQUIRED lines of CODE to make sure the filter behaves correctly
   setInPreflight(true); // Set the fact that we are preflighting.
@@ -76,7 +76,7 @@ void FindEdges::preflight()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void FindEdges::execute()
+void DetectEllipsoids::execute()
 {
   initialize();
   dataCheck();
@@ -98,9 +98,9 @@ void FindEdges::execute()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-AbstractFilter::Pointer FindEdges::newFilterInstance(bool copyFilterParameters)
+AbstractFilter::Pointer DetectEllipsoids::newFilterInstance(bool copyFilterParameters)
 {
-  FindEdges::Pointer filter = FindEdges::New();
+  DetectEllipsoids::Pointer filter = DetectEllipsoids::New();
   if(true == copyFilterParameters)
   {
     copyFilterParameterInstanceVariables(filter.get());
@@ -111,13 +111,13 @@ AbstractFilter::Pointer FindEdges::newFilterInstance(bool copyFilterParameters)
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getCompiledLibraryName()
+const QString DetectEllipsoids::getCompiledLibraryName()
 { return FiberToolboxConstants::FiberToolboxBaseName; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getBrandingString()
+const QString DetectEllipsoids::getBrandingString()
 {
   return "FiberToolbox";
 }
@@ -125,7 +125,7 @@ const QString FindEdges::getBrandingString()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getFilterVersion()
+const QString DetectEllipsoids::getFilterVersion()
 {
   QString version;
   QTextStream vStream(&version);
@@ -136,18 +136,18 @@ const QString FindEdges::getFilterVersion()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getGroupName()
+const QString DetectEllipsoids::getGroupName()
 { return SIMPL::FilterGroups::Unsupported; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getSubGroupName()
+const QString DetectEllipsoids::getSubGroupName()
 { return "FiberToolbox"; }
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString FindEdges::getHumanLabel()
-{ return "Find Edges"; }
+const QString DetectEllipsoids::getHumanLabel()
+{ return "Detect Ellipsoids"; }
 

@@ -10,18 +10,18 @@
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
 
 /**
- * @brief The FindEdges class. See [Filter documentation](@ref fibertoolboxfilter) for details.
+ * @brief The DetectEllipsoids class. See [Filter documentation](@ref fibertoolboxfilter) for details.
  */
-class FindEdges : public AbstractFilter
+class DetectEllipsoids : public AbstractFilter
 {
   Q_OBJECT
 
   public:
-    SIMPL_SHARED_POINTERS(FindEdges)
-    SIMPL_STATIC_NEW_MACRO(FindEdges)
-    SIMPL_TYPE_MACRO_SUPER(FindEdges, AbstractFilter)
+    SIMPL_SHARED_POINTERS(DetectEllipsoids)
+    SIMPL_STATIC_NEW_MACRO(DetectEllipsoids)
+    SIMPL_TYPE_MACRO_SUPER(DetectEllipsoids, AbstractFilter)
 
-    virtual ~FindEdges();
+    virtual ~DetectEllipsoids();
 
 
 
@@ -103,7 +103,7 @@ class FindEdges : public AbstractFilter
     void preflightExecuted();
 
   protected:
-    FindEdges();
+    DetectEllipsoids();
 
     /**
     * @brief dataCheck Checks for the appropriate parameter values and availability of arrays
@@ -116,8 +116,8 @@ class FindEdges : public AbstractFilter
     void initialize();
 
   private:
-    FindEdges(const FindEdges&); // Copy Constructor Not Implemented
-    void operator=(const FindEdges&); // Operator '=' Not Implemented
+    DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
+    void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
 };
 
-#endif /* _FindEdges_H_ */
+#endif /* _DetectEllipsoids_H_ */
