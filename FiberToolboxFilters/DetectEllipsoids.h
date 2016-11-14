@@ -23,7 +23,8 @@ class DetectEllipsoids : public AbstractFilter
 
     virtual ~DetectEllipsoids();
 
-
+    SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureIdsArrayPath)
+    Q_PROPERTY(DataArrayPath FeatureIdsArrayPath READ getFeatureIdsArrayPath WRITE setFeatureIdsArrayPath)
 
     /**
      * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class

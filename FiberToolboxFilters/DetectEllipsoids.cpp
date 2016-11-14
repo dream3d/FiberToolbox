@@ -5,7 +5,7 @@
 #include "DetectEllipsoids.h"
 
 #include "SIMPLib/Common/Constants.h"
-
+#include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
 
 
 #include "FiberToolbox/FiberToolboxConstants.h"
@@ -46,6 +46,12 @@ void DetectEllipsoids::initialize()
 void DetectEllipsoids::setupFilterParameters()
 {
   FilterParameterVector parameters;
+
+  {
+    DataArraySelectionFilterParameter::RequirementType req =
+        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int32, 1, SIMPL::AttributeMatrixType::Cell, SIMPL::GeometryType::ImageGeometry);
+    parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Feature Ids", FeatureIdsArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
+  }
 
   setFilterParameters(parameters);
 }
