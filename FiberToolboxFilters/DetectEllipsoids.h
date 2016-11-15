@@ -23,8 +23,35 @@ class DetectEllipsoids : public AbstractFilter
 
     virtual ~DetectEllipsoids();
 
+    enum ScaleBarUnits
+    {
+      MillimeterUnits = 0,
+      MicronUnits = 1
+    };
+
     SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath FeatureIdsArrayPath READ getFeatureIdsArrayPath WRITE setFeatureIdsArrayPath)
+
+    SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
+    Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
+
+    SIMPL_FILTER_PARAMETER(int, MinFiberAxisLength)
+    Q_PROPERTY(int MinFiberAxisLength READ getMinFiberAxisLength WRITE setMinFiberAxisLength)
+
+    SIMPL_FILTER_PARAMETER(int, MaxFiberAxisLength)
+    Q_PROPERTY(int MaxFiberAxisLength READ getMaxFiberAxisLength WRITE setMaxFiberAxisLength)
+
+    SIMPL_FILTER_PARAMETER(float, HoughTransformThreshold)
+    Q_PROPERTY(float HoughTransformThreshold READ getHoughTransformThreshold WRITE setHoughTransformThreshold)
+
+    SIMPL_FILTER_PARAMETER(float, MinAspectRatio)
+    Q_PROPERTY(float MinAspectRatio READ getMinAspectRatio WRITE setMinAspectRatio)
+
+    SIMPL_FILTER_PARAMETER(int, ImageScaleBarLength)
+    Q_PROPERTY(int ImageScaleBarLength READ getImageScaleBarLength WRITE setImageScaleBarLength)
+
+    SIMPL_FILTER_PARAMETER(int, ImageScaleBarUnits)
+    Q_PROPERTY(int ImageScaleBarUnits READ getImageScaleBarUnits WRITE setImageScaleBarUnits)
 
     /**
      * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class
@@ -117,6 +144,7 @@ class DetectEllipsoids : public AbstractFilter
     void initialize();
 
   private:
+
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
 };
