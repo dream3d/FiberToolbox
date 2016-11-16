@@ -5,9 +5,13 @@
 #ifndef _fibertoolboxfilter_h_
 #define _fibertoolboxfilter_h_
 
+#include <complex>
+
 #include "SIMPLib/SIMPLib.h"
 #include "SIMPLib/Common/AbstractFilter.h"
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
+
+typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
 
 /**
  * @brief The DetectEllipsoids class. See [Filter documentation](@ref fibertoolboxfilter) for details.
@@ -144,6 +148,19 @@ class DetectEllipsoids : public AbstractFilter
     void initialize();
 
   private:
+    static double img_scale_length;
+
+    /**
+     * @brief orientationFilter
+     * @return
+     */
+    DoubleArrayType::Pointer orientationFilter(int minAxisLength, int maxAxisLength);
+
+    /**
+     * @brief houghCircleFilter
+     * @return
+     */
+    DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength);
 
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented

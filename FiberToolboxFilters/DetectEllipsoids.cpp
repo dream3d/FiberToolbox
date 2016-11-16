@@ -13,12 +13,16 @@
 #include <tbb/tick_count.h>
 #endif
 
+#include <cmath>
+
+#include "SIMPLib/Math/SIMPLibMath.h"
 #include "SIMPLib/Common/Constants.h"
 #include "SIMPLib/FilterParameters/ChoiceFilterParameter.h"
 #include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
 #include "SIMPLib/FilterParameters/IntFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
+#include "SIMPLib/DataArrays/StringDataArray.hpp"
 
 #include "FiberToolbox/FiberToolboxConstants.h"
 #include "FiberToolbox/FiberToolboxVersion.h"
@@ -36,13 +40,17 @@ class DetectEllipsoidsImpl
   UInt32ArrayType::Pointer        m_Corners;
   int32_t                         m_FeatureIdStart;
   int32_t                         m_FeatureIdEnd;
+  DoubleArrayType::Pointer        m_OrientArray;
+  DE_ComplexDoubleVector          m_HoughCircleArray;
 
 public:
-  DetectEllipsoidsImpl(int* cellFeatureIdsPtr, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd) :
+  DetectEllipsoidsImpl(int* cellFeatureIdsPtr, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DoubleArrayType::Pointer orientArray, DE_ComplexDoubleVector houghCircleArray) :
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
     m_Corners(corners),
     m_FeatureIdStart(featureIdStart),
-    m_FeatureIdEnd(featureIdEnd)
+    m_FeatureIdEnd(featureIdEnd),
+    m_OrientArray(orientArray),
+    m_HoughCircleArray(houghCircleArray)
   {
     m_CellFeatureIdsDims[0] = cellFeatureIdsDims[0];
     m_CellFeatureIdsDims[1] = cellFeatureIdsDims[1];
@@ -89,11 +97,12 @@ public:
         }
       }
 
-      //Now send featureObjArray to craig's code
+      //Now send featureObjArray to Craig's code
     }
   }
 };
 
+double DetectEllipsoids::img_scale_length = 588.0;
 
 // -----------------------------------------------------------------------------
 //
@@ -279,6 +288,13 @@ void DetectEllipsoids::execute()
       }
     }
 
+    double img_pix_length = m_ImageScaleBarLength / img_scale_length;
+    double axis_min = std::round( m_MinFiberAxisLength / img_pix_length );
+    double axis_max = std::round( m_MaxFiberAxisLength / img_pix_length );
+
+    DoubleArrayType::Pointer orientArray = orientationFilter(axis_min, axis_max);
+    DE_ComplexDoubleVector houghCircleVector = houghCircleFilter(axis_min, axis_max);
+
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
     tbb::task_scheduler_init init;
     bool doParallel = true;
@@ -297,7 +313,7 @@ void DetectEllipsoids::execute()
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(cellFeatureIdsPtr, dims, corners, start, end));
+        g->run(DetectEllipsoidsImpl(cellFeatureIdsPtr, dims, corners, start, end, orientArray, houghCircleVector));
         start = end;
         end = end + numOfTasks;
         if(end >= totalNumOfFeatures)
@@ -312,12 +328,105 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(cellFeatureIdsPtr, dims, corners, 0, totalNumOfFeatures);
+      DetectEllipsoidsImpl impl(cellFeatureIdsPtr, dims, corners, 0, totalNumOfFeatures, orientArray, houghCircleVector);
       impl();
     }
   }
 
   notifyStatusMessage(getHumanLabel(), "Complete");
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, int maxAxisLength)
+{
+  double doubleMax = static_cast<double>(maxAxisLength);
+  double doubleMin = static_cast<double>(minAxisLength);
+
+  size_t xDim = 2*maxAxisLength+1;
+  size_t yDim = 2*maxAxisLength+1;
+  size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+  size_t totalElements = xDim * yDim * zDim;
+  QVector<size_t> cDims(1, 3);
+  QVector<size_t> tDims(1, totalElements);
+  DoubleArrayType::Pointer orientationCoords = DoubleArrayType::CreateArray(tDims, cDims, "Orientation Coordinates");
+
+  for (int z = 1; z <= zDim; z++)
+  {
+    for (int y = 1; y <= yDim; y++)
+    {
+      for (int x = 1; x <= xDim; x++)
+      {
+        int xIdx = x - 1;
+        int yIdx = y - 1;
+        int zIdx = z - 1;
+        size_t index = (yDim * xDim * zIdx) + (xDim * yIdx) + xIdx;
+
+        double m = static_cast<double>(y)-1.0-doubleMax;
+        double n = static_cast<double>(x)-1.0-doubleMax;
+        double theta = std::atan2(n,m);
+
+        if( std::pow(m,2) + std::pow(n,2) >= std::pow(doubleMin,2) && std::pow(m,2) + std::pow(n,2) <= std::pow(doubleMax,2))
+        {
+          orientationCoords->setComponent(index, 0, std::cos(theta));
+          orientationCoords->setComponent(index, 1, std::sin(theta));
+          orientationCoords->setComponent(index, 2, 0); // This can be changed later to handle 3-dimensions
+        }
+        else
+        {
+          orientationCoords->setComponent(index, 0, 0);
+          orientationCoords->setComponent(index, 1, 0);
+          orientationCoords->setComponent(index, 2, 0);
+        }
+      }
+    }
+  }
+
+  return orientationCoords;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, int maxAxisLength)
+{
+  size_t xDim = 2*maxAxisLength+1;
+  size_t yDim = 2*maxAxisLength+1;
+  size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+  size_t totalElements = xDim * yDim * zDim;
+  DE_ComplexDoubleVector houghCircleCoords(totalElements);
+
+  for (int z = 1; z <= zDim; z++)
+  {
+    for (int y = 1; y <= yDim; y++)
+    {
+      for (int x = 1; x <= xDim; x++)
+      {
+        int xIdx = x - 1;
+        int yIdx = y - 1;
+        int zIdx = z - 1;
+        size_t index = (yDim * xDim * zIdx) + (xDim * yIdx) + xIdx;
+
+        double m = y-1-maxAxisLength;
+        double n = x-1-maxAxisLength;
+        double phi = ( std::sqrt( std::pow(m,2) + std::pow(n,2) ) - minAxisLength ) / ( maxAxisLength - minAxisLength );
+
+        if( std::pow(m,2) + std::pow(n,2) >= std::pow(minAxisLength,2) && std::pow(m,2) + std::pow(n,2) <= std::pow(maxAxisLength,2))
+        {
+          std::complex<double> complexVal(std::cos(2*M_PI*phi), std::sin(2*M_PI*phi));
+          std::complex<double> value = 1.0/2.0/M_PI/std::sqrt(std::pow(m,2) + std::pow(n,2)) * complexVal;
+          houghCircleCoords[index] = value;
+        }
+        else
+        {
+          houghCircleCoords[index] = 0;
+        }
+      }
+    }
+  }
+
+  return houghCircleCoords;
 }
 
 // -----------------------------------------------------------------------------
