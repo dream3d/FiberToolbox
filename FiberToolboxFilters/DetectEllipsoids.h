@@ -193,6 +193,17 @@ class DetectEllipsoids : public AbstractFilter
      */
     DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength);
 
+    /**
+     * @brief convolutionFilter Multiplies the orientationFilter and houghCircleFilter arrays element-by-element.
+     * This function returns three arrays by reference: xCoords, yCoords, zCoords.
+     * @param orientationFilter OrientationFilter array input
+     * @param houghCircleFilter HoughCircleFilter array input
+     * @param xCoords X-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
+     * @param yCoords Y-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
+     * @param zCoords Z-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
+     */
+    void convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector &xCoords, DE_ComplexDoubleVector &yCoords, DE_ComplexDoubleVector &zCoords);
+
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
 };

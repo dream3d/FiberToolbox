@@ -326,6 +326,19 @@ void DetectEllipsoids::execute()
     DoubleArrayType::Pointer orientArray = orientationFilter(axis_min, axis_max);
     DE_ComplexDoubleVector houghCircleVector = houghCircleFilter(axis_min, axis_max);
 
+    if (orientArray->getNumberOfTuples() != houghCircleVector.size())
+    {
+      setErrorCondition(-31000);
+      QString ss = QObject::tr("There was an internal error.  Please ask the DREAM.3D developers for more information.");
+      notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
+    }
+
+    DE_ComplexDoubleVector xCoords, yCoords, zCoords;
+
+    // This function fills the xCoords, yCoords, and zCoords arrays with values
+    convolutionFilter(orientArray, houghCircleVector, xCoords, yCoords, zCoords);
+
+
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
     tbb::task_scheduler_init init;
     bool doParallel = true;
@@ -458,6 +471,33 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
   }
 
   return houghCircleCoords;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector &xCoords, DE_ComplexDoubleVector &yCoords, DE_ComplexDoubleVector &zCoords)
+{
+  if (orientationFilter->getNumberOfTuples() != houghCircleFilter.size()
+      || orientationFilter->getNumberOfComponents() != 3)
+  { return; }
+
+  for (int i=0; i<orientationFilter->getNumberOfTuples(); i++)
+  {
+    std::complex<double> hcValue = houghCircleFilter[i];
+
+    double orientValue_X = orientationFilter->getComponent(i, 0);
+    std::complex<double> valueX = orientValue_X * hcValue;
+    xCoords.push_back(valueX);
+
+    double orientValue_Y = orientationFilter->getComponent(i, 1);
+    std::complex<double> valueY = orientValue_Y * hcValue;
+    yCoords.push_back(valueY);
+
+    double orientValue_Z = orientationFilter->getComponent(i, 2);
+    std::complex<double> valueZ = orientValue_Z * hcValue;
+    zCoords.push_back(valueZ);
+  }
 }
 
 // -----------------------------------------------------------------------------
