@@ -35,6 +35,8 @@
 
 #include "DetectEllipsoids.h"
 
+#define NOMINMAX
+
 #include <QtCore/QDateTime>
 
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
@@ -45,8 +47,6 @@
 #include <tbb/task_scheduler_init.h>
 #include <tbb/tick_count.h>
 #endif
-
-#include <cmath>
 
 #include "SIMPLib/Math/SIMPLibMath.h"
 #include "SIMPLib/Common/Constants.h"
@@ -60,6 +60,9 @@
 #include "FiberToolbox/Algorithms/ComputeGradient.h"
 #include "FiberToolbox/FiberToolboxConstants.h"
 #include "FiberToolbox/FiberToolboxVersion.h"
+
+#include <cmath>
+#include <limits>
 
 // Include the MOC generated file for this class
 #include "moc_DetectEllipsoids.cpp"
@@ -86,6 +89,9 @@ class DetectEllipsoidsImpl
   Int32ArrayType::Pointer         m_SmoothOffsetArray;
 
 public:
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
   DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, Int8ArrayType::Pointer edgesArray, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t totalNumOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray) :
     m_Filter(filter),
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
@@ -107,10 +113,16 @@ public:
     m_CellFeatureIdsDims[2] = cellFeatureIdsDims[2];
   }
 
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
   virtual ~DetectEllipsoidsImpl()
   {
   }
 
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
   void operator()() const
   {
     //std::cout << "Feature Start: " << m_FeatureIdStart << "\tFeature End: " << m_FeatureIdEnd << std::endl;
@@ -226,6 +238,9 @@ public:
     }
   }
 
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
   template <typename T>
   std::vector<T> convoluteImage(DoubleArrayType::Pointer image, std::vector<T> kernel, Int32ArrayType::Pointer offsetArray, QVector<size_t> image_tDims) const
   {
@@ -290,6 +305,168 @@ public:
 
     return convArray;
   }
+
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	// helper method - grabs index from matrix size
+	int sub2ind(int matrixSize[2], int row, int col)
+	{
+		return row * matrixSize[1] + col;
+	}
+
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	int* plotlineEdgeInter(int x0, int y0, int x1, int y1, DoubleArrayType::Pointer binImage, int imageDims[2])
+	{
+		int* edge = new int[2];
+
+		// store initial point
+		int xi = x0;
+		int yi = y0;
+
+		int dx = abs(x1 - x0);
+		int dy = abs(y1 - y0);
+
+		int sx, sy;
+
+		if (x0 < x1)
+			sx = 1;
+		else
+			sx = -1;
+
+		if (y0 < y1)
+			sy = 1;
+		else
+			sy = -1;
+
+		int err = dx - dy;
+		int e2;
+
+		if (err == 0)
+		{
+			edge[0] = 0;
+			edge[1] = 0;
+			return edge;
+		}
+
+		//Search forward
+		while (true)
+		{
+			if (binImage->getComponent(sub2ind(imageDims, x0, y0), 0) == 0)
+			{
+				if (x0 == x1 && y0 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 == x1 && y0 + 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 + 1 == x1 && y0 + 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 + 1 == x1 && y0 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 + 1 == x1 && y0 - 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 == x1 && y0 - 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 - 1 == x1 && y0 - 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 - 1 == x1 && y0 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else if (x0 - 1 == x1 && y0 + 1 == y1)
+				{
+					edge[0] = sub2ind(imageDims, x1, y1);
+					break;
+				}
+				else
+				{
+					edge[0] = 0;
+					edge[1] = 0;
+					return edge;
+				}
+			}
+
+
+
+			e2 = 2 * err;
+
+			if (e2 > -dy)
+			{
+				err -= dy;
+				x0 += sx;
+			}
+
+			if (e2 < dx)
+			{
+				err += dx;
+				y0 += sy;
+			}
+		}
+
+		// Reverse direction!
+		x0 = xi;
+		y0 = yi;
+
+		if (x0 > x1)
+			sx = 1;
+		else
+			sx = -1;
+
+		if (y0 > y1)
+			sy = 1;
+		else
+			sy = -1;
+
+		err = dx - dy;
+
+		while (true)
+		{
+			if (binImage->getComponent(sub2ind(imageDims, x0, y0), 0) == 0)
+			{
+				edge[1] = sub2ind(imageDims, x0, y0);
+				break;
+			}
+
+			e2 = 2 * err;
+
+			if (e2 > -dy)
+			{
+				err -= dy;
+				x0 += sx;
+			}
+
+			if (e2 < dx)
+			{
+				err += dx;
+				y0 += sy;
+			}
+		}
+
+		return edge;
+	}
 };
 
 double DetectEllipsoids::img_scale_length = 588.0;
