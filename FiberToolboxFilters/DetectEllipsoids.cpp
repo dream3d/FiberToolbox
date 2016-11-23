@@ -215,6 +215,29 @@ public:
         }
       }
 
+      std::vector<int> obj_ext_indices = findExtrema(obj_conv_thresh, image_tDims);
+
+      for (int i=0; i<obj_ext_indices.size(); i++)
+      {
+        int obj_ext_index = obj_ext_indices[i];
+        double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
+
+        // Get Indices of the largest value
+        int obj_ext_y = obj_ext_index % image_xDim;
+        int obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
+        int obj_ext_z = (((obj_ext_index / image_xDim) / image_yDim) % zDim);
+      }
+
+      //********
+      DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
+      QVector<size_t> test_am_tDims;
+      test_am_tDims.push_back(image_xDim);
+      test_am_tDims.push_back(image_yDim);
+
+      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix(m_Filter, QString::number(i) + "_AM", image_tDims, 0);
+      test_am->addAttributeArray(obj_conv_thresh->getName(), obj_conv_thresh);
+      //*******
+
       if (m_Filter->getCancel())
       {
         return;
@@ -289,6 +312,54 @@ public:
     }
 
     return convArray;
+  }
+
+  /**
+   * @brief findExtrema Finds all extrema values in the given threshold array
+   * @param thresholdArray
+   * @return
+   */
+  std::vector<int> findExtrema(DoubleArrayType::Pointer thresholdArray, QVector<size_t> tDims) const
+  {
+    std::vector<int> extrema;
+    size_t xDim = tDims[0];
+    size_t yDim = tDims[1];
+
+    std::vector<int> smaxcol;
+
+    // Search peaks through columns
+    for (int x = 0; x < xDim; x++)
+    {
+      int rowIndex = 0;
+      for (int y = 0; y < yDim; y++)
+      {
+        int index = (xDim * y) + x;
+        if (thresholdArray->getValue(index) > rowIndex)
+        {
+          rowIndex = y;
+        }
+      }
+      smaxcol.push_back(rowIndex);
+    }
+
+    // Search peaks through rows, on columns with extrema points:
+    auto last = std::unique(smaxcol.begin(), smaxcol.end());
+    smaxcol.erase(last, smaxcol.end());
+    int extremaIndex = 0;
+    for (int i=0; y<smaxcol.size(); y++)
+    {
+      int y = smaxcol[i];
+      for (int x=0; i<xDim; x++)
+      {
+        int index = (xDim * y) + x;
+        if (thresholdArray->getValue(index) > extrema)
+        {
+          extremaIndex = index;
+        }
+      }
+    }
+
+    return extrema;
   }
 };
 
