@@ -81,10 +81,12 @@ class DetectEllipsoidsImpl
   DE_ComplexDoubleVector          m_ConvCoords_Y;
   DE_ComplexDoubleVector          m_ConvCoords_Z;
   QVector<size_t>                 m_ConvKernel_tDims;
-  Int32ArrayType::Pointer         m_OffsetArray;
+  Int32ArrayType::Pointer         m_ConvOffsetArray;
+  std::vector<double>             m_SmoothKernel;
+  Int32ArrayType::Pointer         m_SmoothOffsetArray;
 
 public:
-  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, Int8ArrayType::Pointer edgesArray, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t totalNumOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer offsetArray) :
+  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, Int8ArrayType::Pointer edgesArray, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t totalNumOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray) :
     m_Filter(filter),
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
     m_EdgesArray(edgesArray),
@@ -96,7 +98,9 @@ public:
     m_ConvCoords_Y(convCoords_Y),
     m_ConvCoords_Z(convCoords_Z),
     m_ConvKernel_tDims(kernel_tDims),
-    m_OffsetArray(offsetArray)
+    m_ConvOffsetArray(convOffsetArray),
+    m_SmoothKernel(smoothFil),
+    m_SmoothOffsetArray(smoothOffsetArray)
   {
     m_CellFeatureIdsDims[0] = cellFeatureIdsDims[0];
     m_CellFeatureIdsDims[1] = cellFeatureIdsDims[1];
@@ -164,6 +168,7 @@ public:
         }
       }
 
+      // Convolute Gradient of object with filters
       ComputeGradient grad(featureObjArray, image_xDim, image_yDim);
       grad.compute();
 
@@ -172,8 +177,43 @@ public:
 
       //std::cout << "Feature Id: " << i << "\tNumTuples = " << gradX->getNumberOfTuples() << std::endl;
 
-      DE_ComplexDoubleVector gradX_conv = convoluteGradient(gradX, m_ConvCoords_X, image_tDims);
-      DE_ComplexDoubleVector gradY_conv = convoluteGradient(gradY, m_ConvCoords_Y, image_tDims);
+      DE_ComplexDoubleVector gradX_conv = convoluteImage(gradX, m_ConvCoords_X, m_ConvOffsetArray, image_tDims);
+      DE_ComplexDoubleVector gradY_conv = convoluteImage(gradY, m_ConvCoords_Y, m_ConvOffsetArray, image_tDims);
+
+      DoubleArrayType::Pointer obj_conv_mag = DoubleArrayType::CreateArray(gradX_conv.size(), QVector<size_t>(1, 1), "obj_conv_mag");
+      for (int i=0; i < gradX_conv.size(); i++)
+      {
+        std::complex<double> complexValue = gradX_conv[i] + gradY_conv[i];
+
+        // Calculate magnitude of convolution
+        double value = std::abs(complexValue);
+        obj_conv_mag->setValue(i, value);
+      }
+
+      // Smooth Accumulator with Smoothing filter
+      std::vector<double> obj_conv_mag_smooth = convoluteImage(obj_conv_mag, m_SmoothKernel, m_SmoothOffsetArray, image_tDims);
+      double obj_conv_max = 0;
+      for (int i=0; i<obj_conv_mag_smooth.size(); i++)
+      {
+        // Find max peak to set threshold
+        if (obj_conv_mag_smooth[i] > obj_conv_max)
+        {
+          obj_conv_max = obj_conv_mag_smooth[i];
+        }
+        obj_conv_mag->setValue(i, obj_conv_mag_smooth[i]);
+      }
+
+      // Threshold convolution
+      DoubleArrayType::Pointer obj_conv_thresh = DoubleArrayType::CreateArray(obj_conv_mag->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_conv_thresh");
+      obj_conv_thresh->initializeWithZeros();
+      for (int i=0; i<obj_conv_thresh->getNumberOfTuples(); i++)
+      {
+        if (obj_conv_mag->getValue(i) > (0.7 * obj_conv_max))
+        {
+          double value = obj_conv_mag->getValue(i);
+          obj_conv_thresh->setValue(i, value);
+        }
+      }
 
       if (m_Filter->getCancel())
       {
@@ -186,36 +226,37 @@ public:
     }
   }
 
-  DE_ComplexDoubleVector convoluteGradient(DoubleArrayType::Pointer grad, DE_ComplexDoubleVector kernel, QVector<size_t> gradient_tDims) const
+  template <typename T>
+  std::vector<T> convoluteImage(DoubleArrayType::Pointer image, std::vector<T> kernel, Int32ArrayType::Pointer offsetArray, QVector<size_t> image_tDims) const
   {
-    DE_ComplexDoubleVector reverse_kernel = kernel;
+    std::vector<T> convArray;
+
+    std::vector<T> reverse_kernel = kernel;
     std::reverse(std::begin(reverse_kernel), std::end(reverse_kernel));
 
-    DE_ComplexDoubleVector convArray;
+    int* offsetArrayPtr = offsetArray->getPointer(0);
+    double* imageArray = image->getPointer(0);
+    int offsetArrayNumOfComps = offsetArray->getNumberOfComponents();
 
-    int* offsetArray = m_OffsetArray->getPointer(0);
-    double* gradArray = grad->getPointer(0);
-    int offsetArrayNumOfComps = m_OffsetArray->getNumberOfComponents();
-
-    std::complex<double> accumulator;
-    size_t xDim = gradient_tDims[0], yDim = gradient_tDims[1], zDim = gradient_tDims[2];
-    int gradNumTuples = grad->getNumberOfTuples();
+    T accumulator;
+    size_t xDim = image_tDims[0], yDim = image_tDims[1], zDim = image_tDims[2];
+    int gradNumTuples = image->getNumberOfTuples();
     int reverseKernelCount = reverse_kernel.size();
     for (int i=0; i<gradNumTuples; i++)
     {
       if (m_Filter->getCancel())
       {
-        return DE_ComplexDoubleVector();
+        return std::vector<T>();
       }
 
-      int gradCenterX = (i % xDim);
-      int gradCenterY = ((i / xDim) % yDim);
-      int gradCenterZ = (((i / xDim) / yDim) % zDim);
+      int imageCurrentX = (i % xDim);
+      int imageCurrentY = ((i / xDim) % yDim);
+      int imageCurrentZ = (((i / xDim) / yDim) % zDim);
       for (int j = 0; j < reverseKernelCount; j++)
       {
-        int currCoord_X = gradCenterX + offsetArray[j*offsetArrayNumOfComps];
-        int currCoord_Y = gradCenterY + offsetArray[(j*offsetArrayNumOfComps) + 1];
-        int currCoord_Z = gradCenterZ + offsetArray[(j*offsetArrayNumOfComps) + 2];
+        int currCoord_X = imageCurrentX + offsetArrayPtr[j*offsetArrayNumOfComps];
+        int currCoord_Y = imageCurrentY + offsetArrayPtr[(j*offsetArrayNumOfComps) + 1];
+        int currCoord_Z = imageCurrentZ + offsetArrayPtr[(j*offsetArrayNumOfComps) + 2];
 
         if (currCoord_X >= 0)
         {
@@ -231,9 +272,9 @@ public:
                   {
                     int gradIndex = (yDim * xDim * currCoord_Z) + (xDim * currCoord_Y) + currCoord_X;
 
-                    std::complex<double> kernelVal = reverse_kernel[j];
-                    double gradientVal = gradArray[gradIndex];
-                    std::complex<double> value = kernelVal * gradientVal;
+                    T kernelVal = reverse_kernel[j];
+                    double imageVal = imageArray[gradIndex];
+                    T value = kernelVal * imageVal;
                     accumulator += value;
                   }
                 }
@@ -472,7 +513,15 @@ void DetectEllipsoids::execute()
 
     Int8ArrayType::Pointer edgesArray = getDataContainerArray()->getPrereqArrayFromPath<Int8ArrayType,AbstractFilter>(this, m_EdgesArrayPath, QVector<size_t>(1, 1));
 
-    Int32ArrayType::Pointer offsetArray = createConvOffsetArray(orient_tDims);
+    Int32ArrayType::Pointer convOffsetArray = createOffsetArray(orient_tDims);
+
+    int n_size = 3;
+    std::vector<double> smoothFil = smoothingFilter(n_size);
+    QVector<size_t> smooth_tDims;
+    smooth_tDims.push_back(2*n_size+1);
+    smooth_tDims.push_back(2*n_size+1);
+    smooth_tDims.push_back(1);
+    Int32ArrayType::Pointer smoothOffsetArray = createOffsetArray(smooth_tDims);
 
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
     tbb::task_scheduler_init init;
@@ -497,7 +546,7 @@ void DetectEllipsoids::execute()
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, edgesArray, dims, corners, start, end, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, offsetArray));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, edgesArray, dims, corners, start, end, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray));
         start = end;
         end = end + numOfTasks;
         if(end >= totalNumOfFeatures)
@@ -512,7 +561,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 21, 22, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, offsetArray);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 21, 22, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
       impl();
     }
 
@@ -530,6 +579,8 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
 {
   double doubleMax = static_cast<double>(maxAxisLength);
   double doubleMin = static_cast<double>(minAxisLength);
+  double doubleMin_squared = doubleMin*doubleMin;
+  double doubleMax_squared = doubleMax*doubleMax;
 
   size_t xDim = 2*maxAxisLength+1;
   size_t yDim = 2*maxAxisLength+1;
@@ -556,7 +607,7 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
         double n = static_cast<double>(x)-1.0-doubleMax;
         double theta = std::atan2(n,m);
 
-        if( std::pow(m,2) + std::pow(n,2) >= std::pow(doubleMin,2) && std::pow(m,2) + std::pow(n,2) <= std::pow(doubleMax,2))
+        if( (m*m) + (n*n) >= doubleMin_squared && (m*m) + (n*n) <= doubleMax_squared)
         {
           orientationCoords->setComponent(index, 0, std::cos(theta));
           orientationCoords->setComponent(index, 1, std::sin(theta));
@@ -589,6 +640,8 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
   tDims.push_back(yDim);
   tDims.push_back(zDim);
   DE_ComplexDoubleVector houghCircleCoords(totalElements);
+  int minAxisLength_squared = minAxisLength*minAxisLength;
+  int maxAxisLength_squared = maxAxisLength*maxAxisLength;
 
   for (int z = 1; z <= zDim; z++)
   {
@@ -603,12 +656,12 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
 
         double m = y-1-maxAxisLength;
         double n = x-1-maxAxisLength;
-        double phi = ( std::sqrt( std::pow(m,2) + std::pow(n,2) ) - minAxisLength ) / ( maxAxisLength - minAxisLength );
+        double phi = ( std::sqrt( (m*m) + (n*n) ) - minAxisLength ) / ( maxAxisLength - minAxisLength );
 
-        if( std::pow(m,2) + std::pow(n,2) >= std::pow(minAxisLength,2) && std::pow(m,2) + std::pow(n,2) <= std::pow(maxAxisLength,2))
+        if( (m*m) + (n*n) >= minAxisLength_squared && (m*m) + (n*n) <= maxAxisLength_squared)
         {
           std::complex<double> complexVal(std::cos(2*M_PI*phi), std::sin(2*M_PI*phi));
-          std::complex<double> value = 1.0/2.0/M_PI/std::sqrt(std::pow(m,2) + std::pow(n,2)) * complexVal;
+          std::complex<double> value = 1.0/2.0/M_PI/std::sqrt((m*m) + (n*n)) * complexVal;
           houghCircleCoords[index] = value;
         }
         else
@@ -652,7 +705,43 @@ void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFil
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-Int32ArrayType::Pointer DetectEllipsoids::createConvOffsetArray(QVector<size_t> kernel_tDims)
+std::vector<double> DetectEllipsoids::smoothingFilter(int n_size)
+{
+  int xDim = 2*n_size+1;
+  int yDim = 2*n_size+1;
+  int zDim = 1;
+  std::vector<double> smooth(xDim*yDim*zDim);
+  int n_size_squared = n_size*n_size;
+
+  for (int z = 0; z < zDim; z++)
+  {
+    for (int y = 0; y < yDim; y++)
+    {
+      for (int x = 0; x < xDim; x++)
+      {
+        int m = y-n_size;
+        int n = x-n_size;
+        int index = (yDim * xDim * z) + (xDim * y) + x;
+
+        if( ((m*m) + (n*n)) <= n_size_squared)
+        {
+          smooth[index] = 1;
+        }
+        else
+        {
+          smooth[index] = 0;
+        }
+      }
+    }
+  }
+
+  return smooth;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+Int32ArrayType::Pointer DetectEllipsoids::createOffsetArray(QVector<size_t> kernel_tDims)
 {
   QVector<size_t> cDims(1, 3);
   Int32ArrayType::Pointer offsetArray = Int32ArrayType::CreateArray(kernel_tDims, cDims, "Coordinate Array");

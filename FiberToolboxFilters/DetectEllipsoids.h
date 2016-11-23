@@ -214,7 +214,14 @@ class DetectEllipsoids : public AbstractFilter
      * @param kernel_tDims
      * @return
      */
-    Int32ArrayType::Pointer createConvOffsetArray(QVector<size_t> kernel_tDims);
+    Int32ArrayType::Pointer createOffsetArray(QVector<size_t> kernel_tDims);
+
+    /**
+     * @brief smoothingFilter
+     * @param n_size
+     * @return
+     */
+    std::vector<double> smoothingFilter(int n_size);
 
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
