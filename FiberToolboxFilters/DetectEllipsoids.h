@@ -33,8 +33,8 @@
 *
 * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-#ifndef _fibertoolboxfilter_h_
-#define _fibertoolboxfilter_h_
+#ifndef _detectellipsoids_h_
+#define _detectellipsoids_h_
 
 #include <complex>
 
@@ -67,6 +67,9 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath FeatureIdsArrayPath READ getFeatureIdsArrayPath WRITE setFeatureIdsArrayPath)
 
+    SIMPL_FILTER_PARAMETER(DataArrayPath, EdgesArrayPath)
+    Q_PROPERTY(DataArrayPath EdgesArrayPath READ getEdgesArrayPath WRITE setEdgesArrayPath)
+
     SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
     Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
 
@@ -87,6 +90,8 @@ class DetectEllipsoids : public AbstractFilter
 
     SIMPL_FILTER_PARAMETER(int, ImageScaleBarUnits)
     Q_PROPERTY(int ImageScaleBarUnits READ getImageScaleBarUnits WRITE setImageScaleBarUnits)
+
+    SIMPL_FILTER_PARAMETER(int, FeaturesCompleted)
 
     /**
      * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class
@@ -185,27 +190,34 @@ class DetectEllipsoids : public AbstractFilter
      * @brief orientationFilter
      * @return
      */
-    DoubleArrayType::Pointer orientationFilter(int minAxisLength, int maxAxisLength);
+    DoubleArrayType::Pointer orientationFilter(int minAxisLength, int maxAxisLength, QVector<size_t> &tDims);
 
     /**
      * @brief houghCircleFilter
      * @return
      */
-    DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength);
+    DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength, QVector<size_t> &tDims);
 
     /**
      * @brief convolutionFilter Multiplies the orientationFilter and houghCircleFilter arrays element-by-element.
-     * This function returns three arrays by reference: xCoords, yCoords, zCoords.
      * @param orientationFilter OrientationFilter array input
      * @param houghCircleFilter HoughCircleFilter array input
-     * @param xCoords X-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
-     * @param yCoords Y-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
-     * @param zCoords Z-coordinate array of complex doubles. THIS ARRAY WILL GET RESIZED AND OVERWRITTEN.
+     * @param convCoords_X
+     * @param convCoords_Y
+     * @param convCoords_Z
+     * @return
      */
-    void convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector &xCoords, DE_ComplexDoubleVector &yCoords, DE_ComplexDoubleVector &zCoords);
+    void convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector &convCoords_X, DE_ComplexDoubleVector &convCoords_Y, DE_ComplexDoubleVector &convCoords_Z);
+
+    /**
+     * @brief createConvOffsetArray
+     * @param kernel_tDims
+     * @return
+     */
+    Int32ArrayType::Pointer createConvOffsetArray(QVector<size_t> kernel_tDims);
 
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
 };
 
-#endif /* _DetectEllipsoids_H_ */
+#endif /* _detectellipsoids_h_ */

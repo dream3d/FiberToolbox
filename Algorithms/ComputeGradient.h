@@ -47,7 +47,7 @@
 class ComputeGradient
 {
 public:
-  ComputeGradient(Int32ArrayType::Pointer input, int width, int height);
+  ComputeGradient(DoubleArrayType::Pointer input, int width, int height);
   virtual ~ComputeGradient();
 
   DoubleArrayType::Pointer getGradY();
@@ -56,7 +56,7 @@ public:
   void compute();
 
 private:
-  Int32ArrayType::Pointer m_Input = Int32ArrayType::NullPointer();
+  DoubleArrayType::Pointer m_Input = DoubleArrayType::NullPointer();
   int m_Width = -1;
   int m_Height = -1;
   DoubleArrayType::Pointer m_GradX = DoubleArrayType::NullPointer();

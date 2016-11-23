@@ -38,7 +38,7 @@
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-ComputeGradient::ComputeGradient(Int32ArrayType::Pointer input, int width, int height)
+ComputeGradient::ComputeGradient(DoubleArrayType::Pointer input, int width, int height)
 : m_Input(input)
 , m_Width(width)
 , m_Height(height)
@@ -64,7 +64,7 @@ void ComputeGradient::compute()
   m_GradY = DoubleArrayType::CreateArray(m_Input->getNumberOfTuples(), "Y Gradient", true);
   m_GradY->initializeWithZeros();
 
-  int32_t* valPtr = m_Input->getPointer(0);
+  double* valPtr = m_Input->getPointer(0);
 
   size_t gIdx = 0;
   // Compute the X Gradient
