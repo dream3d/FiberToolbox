@@ -639,6 +639,285 @@ public:
 
 		return edge;
 	}
+
+	template <typename T>
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	int length(T* array)
+	{
+		if (array == nullptr)
+			return 0;
+
+		int arraySize = sizeof(array);
+
+		if (arraySize <= 0)
+			return 0;
+
+		return arraySize / sizeof(array[0]);
+	}
+
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	int getIdOfMax(double* array)
+	{
+		if (array == nullptr)
+			return -1;
+
+		int arrayLength = length(array);
+
+		if (arrayLength <= 0)
+			return -1;
+
+		double maxId = -1;
+		double maxValue = std::numeric_limits<double>::min();
+
+		for (int i = 0; i < arrayLength; i++)
+		{
+			if (array[i] > maxValue)
+			{
+				maxValue = array[i];
+				maxId = i;
+			}
+		}
+
+		return maxId;
+	}
+
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	std::vector<int> findNonZeroIndices(int** array)
+	{
+		std::vector<int> indices;
+
+		if (array == nullptr)
+			return indices;
+
+		int length_y = length(array);
+		int length_x = length(array[0]);
+
+		for (int i = 0; i < length_y; i++)
+		{
+			for (int j = 0; j < length(array[i]); i++)
+			{
+				if (array[i][j] != 0)
+				{
+					indices.push_back(i*length_x + j);
+				}
+			}
+		}
+
+		return indices;
+	}
+
+	template <typename T>
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	T** bitwiseMatrixCombination(T** matrix1, T** matrix2)
+	{
+		T** result;
+
+		int matrix1_y = length(matrix1);
+		int matrix1_x = length(matrix1[0]);
+
+		int matrix2_y = length(matrix2);
+		int matrix2_x = length(matrix2[0]);
+
+		if (matrix1_x != matrix2_x ||
+			matrix1_y != matrix2_y)
+		{
+			result = nullptr;
+		}
+		else
+		{
+			result = new T*[matrix1_y];
+
+			for (int i = 0; i < matrix1_y; i++)
+			{
+				for (int j = 0; j < matrix1_x; j++)
+				{
+					result[y] = new T[matrix1_x];
+					result[y] = matrix1[y][x] & matrix2[y][x];
+				}
+			}
+		}
+
+		return result;
+	}
+
+
+	// -----------------------------------------------------------------------------
+	//
+	// -----------------------------------------------------------------------------
+	void detectEllipse(int edgePair1x[], int edgePair2x[], int edgePair1y[], int edgePair2y[], int index, int axis_min, int axis_max, 
+		int dobj_x, int dobj_y, int** obj_mask_edge, double tol_ellipse, double ba_min, 
+		int& can_num, double* cenx_can, double* ceny_can, double* maj_can, double* min_can, double* rot_can, double* accum_can)
+	{
+		const int daxis = axis_max - axis_min;
+		int axis_min_sq = axis_min * axis_min;
+
+		int x1 = edgePair1x[index];
+		int y1 = edgePair1y[index];
+
+		int x2 = edgePair2x[index];
+		int y2 = edgePair2y[index];
+
+		int x0 = (x1 + x2) / 2;
+		int y0 = (y1 + y2) / 2;
+		double a = sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) / 2;          // Equation 3
+		int alpha = atan2(y2 - y1, x2 - x1);                      // Equation 4
+		
+		double* accum = new double[daxis];
+		for (int i = 0; i < daxis; i++)
+		{
+			accum[i] = 0;
+		}
+
+		cenx_can = new double[10];
+		ceny_can = new double[10];
+		maj_can = new double[10];
+		min_can = new double[10];
+		rot_can = new double[10];
+		accum_can = new double[10];
+
+		if (a >= axis_min && a <= axis_max)												// ED: Step 4
+		{
+			for (int k = 0; k < length(edgePair1x); k++)
+			{
+
+				int x3 = edgePair1x[k];
+				int y3 = edgePair1y[k];
+
+				int dsq = (x3 - x0) ^ 2 + (y3 - y0) ^ 2;
+				int asq = a * a;
+
+				if (dsq > axis_min_sq && dsq < asq)										// ED: Step 6
+				{
+					double d = sqrt(dsq);
+					int fsq = (x3 - x2) ^ 2 + (y3 - y2) ^ 2;
+
+					double costau = (asq + dsq - fsq) / (2 * a*d);			// Equation 6
+
+					double costau_sq = costau * costau;
+					double sintau_sq = 1 - costau_sq;
+
+					double bsq = (asq * dsq * sintau_sq) / (asq - dsq * costau_sq);     // Equation 5
+
+					double b = sqrt(bsq);
+
+					//Add one to count from one
+					int bidx = round(b) - axis_min + 1;									// ED: Step 7
+
+					if (bidx <= daxis && bidx > 0)
+					{
+						accum[bidx] = accum[bidx] + 1;										// ED: Step 8
+					}
+				}
+			}
+
+			int accum_idx = getIdOfMax(accum);												// ED: Step 10
+			double accum_max = accum[accum_idx];
+
+			if (accum_max > 5) // Check any ellipse with accum > 3
+			{
+				int b = accum_idx + axis_min - 1; //subtract one to count from zero
+
+				if (b / a > ba_min) // Require a minimum aspect ratio
+				{
+					//Draw ellipse and compare to object
+					int *x_coord, *y_coord;
+
+					PlotEllipsev2(round(x0), round(y0), round(a), round(b), alpha, x_coord, y_coord);
+					int x_coord_max = length(x_coord);
+					int y_coord_max = length(y_coord);
+
+					// create I_check as a 2D array and assign all values to zero
+					int **I_check = new int*[dobj_x];
+					for (int i = 0; i < dobj_x; i++)
+					{
+						I_check[i] = new int[dobj_y];
+
+						for (int j = 0; j < dobj_y; j++)
+						{
+							I_check[i][j] = 0;
+						}
+					}
+
+					for (int k = 0; k < x_coord_max; k++)
+					{
+						if (x_coord[k] > 0 && x_coord[k] <= dobj_x &&
+							y_coord[k] > 0 && y_coord[k] <= dobj_y)
+						{
+							I_check[x_coord[k]][y_coord[k]] = 1;
+
+							if (x_coord[k] + 1 <= dobj_x)
+							{
+								I_check[x_coord[k] + 1][y_coord[k]] = 1;
+							}
+							if (x_coord[k] - 1 > 0)
+							{
+								I_check[x_coord[k] - 1][y_coord[k]] = 1;
+							}
+							if (y_coord[k] + 1 <= dobj_y)
+							{
+								I_check[x_coord[k]][y_coord[k] + 1] = 1;
+							}
+							if (y_coord[k] - 1 > 0)
+							{
+								I_check[x_coord[k]][y_coord[k] - 1] = 1;
+							}
+							if (x_coord[k] + 1 <= dobj_x && y_coord[k] + 1 <= dobj_y)
+							{
+								I_check[x_coord[k] + 1][y_coord[k] + 1] = 1;
+							}
+							if (x_coord[k] - 1 > 0 && y_coord[k] + 1 <= dobj_y)
+							{
+								I_check[x_coord[k] - 1][y_coord[k] + 1] = 1;
+							}
+							if (x_coord[k] + 1 <= dobj_x && y_coord[k] - 1 > 0)
+							{
+								I_check[x_coord[k] + 1][y_coord[k] - 1] = 1;
+							}
+							if (x_coord[k] - 1 > 0 && y_coord[k] - 1 > 0)
+							{
+								I_check[x_coord[k] - 1][y_coord[k] - 1] = 1;
+							}
+						}
+					}
+
+					int** combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
+					std::vector<int> overlap = findNonZeroIndices(combinedMatrix);
+
+					// Estimate perimeter length using Ramanujan'a approximation.
+					double perim = M_PI * (3 * (a + b) - sqrt((3 * a + b)*(a + 3 * b)));
+					// Calculate pixel tolerance based on
+					// the calculated perimeter
+					int tol_pix = round(perim * tol_ellipse);
+
+					if (overlap.size() > tol_pix)
+					{
+						// Accept point as a new candidate
+						cenx_can[can_num] = round(x0); //x - coordinate of ellipse
+						ceny_can[can_num] = round(y0); //y - coordinate of ellipse
+						maj_can[can_num] = round(a); //major semi - axis
+						min_can[can_num] = round(b); //minor semi - axis
+						rot_can[can_num] = alpha; //Counter clockwise rotation from x - axis
+						accum_can[can_num] = accum_max; //Accumulation matrix
+
+						can_num = can_num + 1;
+					}
+
+					delete[] x_coord;
+					delete[] y_coord;
+				}
+			}
+		}
+
+		delete[] accum;
+	}
 };
 
 double DetectEllipsoids::img_scale_length = 588.0;
