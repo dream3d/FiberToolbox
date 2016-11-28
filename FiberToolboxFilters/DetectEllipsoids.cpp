@@ -234,7 +234,7 @@ public:
       test_am_tDims.push_back(image_xDim);
       test_am_tDims.push_back(image_yDim);
 
-      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(i) + "_AM", image_tDims, AttributeMatrix::Type::Generic);
+      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(i) + "_AM", image_tDims, AttributeMatrix::Type::Cell);
       test_am->addAttributeArray(obj_conv_thresh->getName(), obj_conv_thresh);
       //*******
 
@@ -359,7 +359,7 @@ public:
     for (int i=0; i<extremaColSize; i++)
     {
       int y = extremaCols_list[i];
-      int extremaIndex = xDim * y + 0;  // Initialize to index of first value in smaxcol
+      int extremaIndex = xDim * y + 0;  // Initialize to index of first value in extremaRow_flatIndices
       for (int x=1; x<xDim; x++)
       {
         int index = (xDim * y) + x;
@@ -372,13 +372,94 @@ public:
     }
 
     // Peaks in rows and in columns (intersection):
-    QList<int> intersection;
-    for (int i=0; i<extremaCol_flatIndices.size(); i++)
+    QSet<int> rcIntersection;
+    int extremaColFlatIndicesSize = extremaCol_flatIndices.size();
+    for (int i=0; i<extremaColFlatIndicesSize; i++)
     {
       if (extremaRow_flatIndices.contains(extremaCol_flatIndices[i]))
       {
-        intersection.push_back(extremaCol_flatIndices[i]);
+        rcIntersection.insert(extremaCol_flatIndices[i]);
+        extremaRow_flatIndices.removeAll(extremaCol_flatIndices[i]);
       }
+    }
+
+    int extremaRowFlatIndicesSize = extremaRow_flatIndices.size();
+    for (int i=0; i<extremaRowFlatIndicesSize; i++)
+    {
+      if (extremaCol_flatIndices.contains(extremaRow_flatIndices[i]))
+      {
+        rcIntersection.insert(extremaRow_flatIndices[i]);
+        extremaRow_flatIndices.removeAll(extremaCol_flatIndices[i]);
+      }
+    }
+
+    // Peaks through diagonals
+    QList<int> rcIntersectionList = rcIntersection.toList();
+    int rcIntersectionListSize = rcIntersectionList.size();
+    for (int i = 0; i < rcIntersectionListSize; i++)
+    {
+      int extremaIndex = rcIntersectionList[i];
+      int x = (extremaIndex % xDim);
+      int y = ((extremaIndex / xDim) % yDim);
+
+      int xDiag = x - 1;
+      int yDiag = y - 1;
+      while (xDiag >= 0 && yDiag >= 0)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag--;
+        yDiag--;
+      }
+
+      xDiag = x + 1;
+      yDiag = y + 1;
+      while (xDiag < xDim && yDiag < yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag++;
+        yDiag++;
+      }
+
+      xDiag = x - 1;
+      yDiag = y + 1;
+      while (xDiag >= xDim && yDiag < yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag--;
+        yDiag++;
+      }
+
+      xDiag = x + 1;
+      yDiag = y - 1;
+      while (xDiag < xDim && yDiag >= yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag++;
+        yDiag--;
+      }
+
+      extrema.push_back(extremaIndex);
+    }
+
+    if (extrema.size() > 1)
+    {
+      std::cout << "Testing";
     }
 
     return extrema;
@@ -654,7 +735,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 21, 22, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 78, 79, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
       impl();
     }
 
