@@ -227,6 +227,29 @@ public:
         }
       }
 
+      std::vector<int> obj_ext_indices = findExtrema(obj_conv_thresh, image_tDims);
+
+//      for (int i=0; i<obj_ext_indices.size(); i++)
+//      {
+//        int obj_ext_index = obj_ext_indices[i];
+//        double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
+
+//        // Get Indices of the largest value
+//        int obj_ext_y = obj_ext_index % image_xDim;
+//        int obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
+//        int obj_ext_z = (((obj_ext_index / image_xDim) / image_yDim) % zDim);
+//      }
+
+      //********
+      DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
+      QVector<size_t> test_am_tDims;
+      test_am_tDims.push_back(image_xDim);
+      test_am_tDims.push_back(image_yDim);
+
+      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(i) + "_AM", image_tDims, AttributeMatrix::Type::Cell);
+      test_am->addAttributeArray(obj_conv_thresh->getName(), obj_conv_thresh);
+      //*******
+
       if (m_Filter->getCancel())
       {
         return;
@@ -304,6 +327,155 @@ public:
     }
 
     return convArray;
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  std::vector<int> findExtrema(DoubleArrayType::Pointer thresholdArray, QVector<size_t> tDims) const
+  {
+    std::vector<int> extrema;
+    size_t xDim = tDims[0];
+    size_t yDim = tDims[1];
+
+    QSet<int> extremaCols;
+    QList<int> extremaCol_flatIndices;
+
+    // Search peaks through columns
+    for (int x = 0; x < xDim; x++)
+    {
+      double value = 0;
+      int extrema_Y = -1;
+      int flat_index = -1;
+      for (int y = 0; y < yDim; y++)
+      {
+        int index = (xDim * y) + x;
+        double threshValue = thresholdArray->getValue(index);
+        if (threshValue > value)
+        {
+          extrema_Y = y;
+          value = threshValue;
+          flat_index = index;
+        }
+      }
+      if (extrema_Y >= 0)
+      {
+        extremaCols.insert(extrema_Y);
+        extremaCol_flatIndices.push_back(flat_index);
+      }
+    }
+
+    // Search peaks through rows, on columns with extrema points:
+    QList<int> extremaRow_flatIndices;
+    QList<int> extremaCols_list = extremaCols.toList();
+    int extremaColSize = extremaCols_list.size();
+    for (int i=0; i<extremaColSize; i++)
+    {
+      int y = extremaCols_list[i];
+      int extremaIndex = xDim * y + 0;  // Initialize to index of first value in extremaRow_flatIndices
+      for (int x=1; x<xDim; x++)
+      {
+        int index = (xDim * y) + x;
+        if (thresholdArray->getValue(index) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = index;
+        }
+      }
+      extremaRow_flatIndices.push_back(extremaIndex);
+    }
+
+    // Peaks in rows and in columns (intersection):
+    QSet<int> rcIntersection;
+    int extremaColFlatIndicesSize = extremaCol_flatIndices.size();
+    for (int i=0; i<extremaColFlatIndicesSize; i++)
+    {
+      if (extremaRow_flatIndices.contains(extremaCol_flatIndices[i]))
+      {
+        rcIntersection.insert(extremaCol_flatIndices[i]);
+        extremaRow_flatIndices.removeAll(extremaCol_flatIndices[i]);
+      }
+    }
+
+    int extremaRowFlatIndicesSize = extremaRow_flatIndices.size();
+    for (int i=0; i<extremaRowFlatIndicesSize; i++)
+    {
+      if (extremaCol_flatIndices.contains(extremaRow_flatIndices[i]))
+      {
+        rcIntersection.insert(extremaRow_flatIndices[i]);
+        extremaRow_flatIndices.removeAll(extremaCol_flatIndices[i]);
+      }
+    }
+
+    // Peaks through diagonals
+    QList<int> rcIntersectionList = rcIntersection.toList();
+    int rcIntersectionListSize = rcIntersectionList.size();
+    for (int i = 0; i < rcIntersectionListSize; i++)
+    {
+      int extremaIndex = rcIntersectionList[i];
+      int x = (extremaIndex % xDim);
+      int y = ((extremaIndex / xDim) % yDim);
+
+      int xDiag = x - 1;
+      int yDiag = y - 1;
+      while (xDiag >= 0 && yDiag >= 0)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag--;
+        yDiag--;
+      }
+
+      xDiag = x + 1;
+      yDiag = y + 1;
+      while (xDiag < xDim && yDiag < yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag++;
+        yDiag++;
+      }
+
+      xDiag = x - 1;
+      yDiag = y + 1;
+      while (xDiag >= xDim && yDiag < yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag--;
+        yDiag++;
+      }
+
+      xDiag = x + 1;
+      yDiag = y - 1;
+      while (xDiag < xDim && yDiag >= yDim)
+      {
+        int diagIndex = (xDim * yDiag) + xDiag;
+        if (thresholdArray->getValue(diagIndex) > thresholdArray->getValue(extremaIndex))
+        {
+          extremaIndex = diagIndex;
+        }
+        xDiag++;
+        yDiag--;
+      }
+
+      extrema.push_back(extremaIndex);
+    }
+
+    if (extrema.size() > 1)
+    {
+      std::cout << "Testing";
+    }
+
+    return extrema;
   }
 
 	// -----------------------------------------------------------------------------
@@ -738,7 +910,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 21, 22, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 78, 79, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
       impl();
     }
 
