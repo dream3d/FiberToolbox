@@ -234,7 +234,7 @@ public:
       test_am_tDims.push_back(image_xDim);
       test_am_tDims.push_back(image_yDim);
 
-      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix(m_Filter, QString::number(i) + "_AM", image_tDims, 0);
+      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(i) + "_AM", image_tDims, AttributeMatrix::Type::Generic);
       test_am->addAttributeArray(obj_conv_thresh->getName(), obj_conv_thresh);
       //*******
 
@@ -373,7 +373,7 @@ public:
 
     // Peaks in rows and in columns (intersection):
     QList<int> intersection;
-    for (int i=0; i<extremaCol_flatIndices; i++)
+    for (int i=0; i<extremaCol_flatIndices.size(); i++)
     {
       if (extremaRow_flatIndices.contains(extremaCol_flatIndices[i]))
       {
@@ -450,19 +450,19 @@ void DetectEllipsoids::setupFilterParameters()
 
   {
     DataArraySelectionFilterParameter::RequirementType req =
-        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int32, 1, SIMPL::AttributeMatrixType::Cell, SIMPL::GeometryType::ImageGeometry);
+        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int32, 1, AttributeMatrix::Type::Cell, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Feature Ids", FeatureIdsArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
   {
     DataArraySelectionFilterParameter::RequirementType req =
-        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int8, 1, SIMPL::AttributeMatrixType::Cell, SIMPL::GeometryType::ImageGeometry);
+        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int8, 1, AttributeMatrix::Type::Cell, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Edge Array", EdgesArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
   {
     DataArraySelectionFilterParameter::RequirementType req =
-        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Bool, 1, SIMPL::AttributeMatrixType::CellFeature, SIMPL::GeometryType::ImageGeometry);
+        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Bool, 1, AttributeMatrix::Type::CellFeature, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Active", ActiveArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
