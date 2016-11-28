@@ -217,16 +217,16 @@ public:
 
       std::vector<int> obj_ext_indices = findExtrema(obj_conv_thresh, image_tDims);
 
-      for (int i=0; i<obj_ext_indices.size(); i++)
-      {
-        int obj_ext_index = obj_ext_indices[i];
-        double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
+//      for (int i=0; i<obj_ext_indices.size(); i++)
+//      {
+//        int obj_ext_index = obj_ext_indices[i];
+//        double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
 
-        // Get Indices of the largest value
-        int obj_ext_y = obj_ext_index % image_xDim;
-        int obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
-        int obj_ext_z = (((obj_ext_index / image_xDim) / image_yDim) % zDim);
-      }
+//        // Get Indices of the largest value
+//        int obj_ext_y = obj_ext_index % image_xDim;
+//        int obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
+//        int obj_ext_z = (((obj_ext_index / image_xDim) / image_yDim) % zDim);
+//      }
 
       //********
       DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
@@ -325,37 +325,59 @@ public:
     size_t xDim = tDims[0];
     size_t yDim = tDims[1];
 
-    std::vector<int> smaxcol;
+    QSet<int> extremaCols;
+    QList<int> extremaCol_flatIndices;
 
     // Search peaks through columns
     for (int x = 0; x < xDim; x++)
     {
-      int rowIndex = 0;
+      double value = 0;
+      int extrema_Y = -1;
+      int flat_index = -1;
       for (int y = 0; y < yDim; y++)
       {
         int index = (xDim * y) + x;
-        if (thresholdArray->getValue(index) > rowIndex)
+        double threshValue = thresholdArray->getValue(index);
+        if (threshValue > value)
         {
-          rowIndex = y;
+          extrema_Y = y;
+          value = threshValue;
+          flat_index = index;
         }
       }
-      smaxcol.push_back(rowIndex);
+      if (extrema_Y >= 0)
+      {
+        extremaCols.insert(extrema_Y);
+        extremaCol_flatIndices.push_back(flat_index);
+      }
     }
 
     // Search peaks through rows, on columns with extrema points:
-    auto last = std::unique(smaxcol.begin(), smaxcol.end());
-    smaxcol.erase(last, smaxcol.end());
-    int extremaIndex = 0;
-    for (int i=0; y<smaxcol.size(); y++)
+    QList<int> extremaRow_flatIndices;
+    QList<int> extremaCols_list = extremaCols.toList();
+    int extremaColSize = extremaCols_list.size();
+    for (int i=0; i<extremaColSize; i++)
     {
-      int y = smaxcol[i];
-      for (int x=0; i<xDim; x++)
+      int y = extremaCols_list[i];
+      int extremaIndex = xDim * y + 0;  // Initialize to index of first value in smaxcol
+      for (int x=1; x<xDim; x++)
       {
         int index = (xDim * y) + x;
-        if (thresholdArray->getValue(index) > extrema)
+        if (thresholdArray->getValue(index) > thresholdArray->getValue(extremaIndex))
         {
           extremaIndex = index;
         }
+      }
+      extremaRow_flatIndices.push_back(extremaIndex);
+    }
+
+    // Peaks in rows and in columns (intersection):
+    QList<int> intersection;
+    for (int i=0; i<extremaCol_flatIndices; i++)
+    {
+      if (extremaRow_flatIndices.contains(extremaCol_flatIndices[i]))
+      {
+        intersection.push_back(extremaCol_flatIndices[i]);
       }
     }
 
