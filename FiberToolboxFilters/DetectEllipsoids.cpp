@@ -193,37 +193,37 @@ public:
       DE_ComplexDoubleVector gradY_conv = convoluteImage(gradY, m_ConvCoords_Y, m_ConvOffsetArray, image_tDims);
 
       DoubleArrayType::Pointer obj_conv_mag = DoubleArrayType::CreateArray(gradX_conv.size(), QVector<size_t>(1, 1), "obj_conv_mag");
-      for (int i=0; i < gradX_conv.size(); i++)
+      for (int j=0; j < gradX_conv.size(); j++)
       {
-        std::complex<double> complexValue = gradX_conv[i] + gradY_conv[i];
+        std::complex<double> complexValue = gradX_conv[j] + gradY_conv[j];
 
         // Calculate magnitude of convolution
         double value = std::abs(complexValue);
-        obj_conv_mag->setValue(i, value);
+        obj_conv_mag->setValue(j, value);
       }
 
       // Smooth Accumulator with Smoothing filter
       std::vector<double> obj_conv_mag_smooth = convoluteImage(obj_conv_mag, m_SmoothKernel, m_SmoothOffsetArray, image_tDims);
       double obj_conv_max = 0;
-      for (int i=0; i<obj_conv_mag_smooth.size(); i++)
+      for (int j=0; j<obj_conv_mag_smooth.size(); j++)
       {
         // Find max peak to set threshold
-        if (obj_conv_mag_smooth[i] > obj_conv_max)
+        if (obj_conv_mag_smooth[j] > obj_conv_max)
         {
-          obj_conv_max = obj_conv_mag_smooth[i];
+          obj_conv_max = obj_conv_mag_smooth[j];
         }
-        obj_conv_mag->setValue(i, obj_conv_mag_smooth[i]);
+        obj_conv_mag->setValue(j, obj_conv_mag_smooth[j]);
       }
 
       // Threshold convolution
       DoubleArrayType::Pointer obj_conv_thresh = DoubleArrayType::CreateArray(obj_conv_mag->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_conv_thresh");
       obj_conv_thresh->initializeWithZeros();
-      for (int i=0; i<obj_conv_thresh->getNumberOfTuples(); i++)
+      for (int j=0; j<obj_conv_thresh->getNumberOfTuples(); j++)
       {
-        if (obj_conv_mag->getValue(i) > (0.7 * obj_conv_max))
+        if (obj_conv_mag->getValue(j) > (0.7 * obj_conv_max))
         {
-          double value = obj_conv_mag->getValue(i);
-          obj_conv_thresh->setValue(i, value);
+          double value = obj_conv_mag->getValue(j);
+          obj_conv_thresh->setValue(j, value);
         }
       }
 
@@ -735,12 +735,12 @@ public:
 		{
 			result = new T*[matrix1_y];
 
-			for (int i = 0; i < matrix1_y; i++)
+			for (int y = 0; y < matrix1_y; y++)
 			{
-				for (int j = 0; j < matrix1_x; j++)
+				for (int x = 0; x < matrix1_x; x++)
 				{
 					result[y] = new T[matrix1_x];
-					result[y] = matrix1[y][x] & matrix2[y][x];
+					result[y][x] = matrix1[y][x] & matrix2[y][x];
 				}
 			}
 		}
