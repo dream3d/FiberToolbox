@@ -688,23 +688,20 @@ public:
 	// -----------------------------------------------------------------------------
 	//
 	// -----------------------------------------------------------------------------
-	std::vector<int> findNonZeroIndices(int** array)
+	std::vector<int> findNonZeroIndices(Int32ArrayType::Pointer array)
 	{
 		std::vector<int> indices;
 
 		if (array == nullptr)
 			return indices;
 
-		int length_y = length(array);
-		int length_x = length(array[0]);
-
-		for (int i = 0; i < length_y; i++)
+		for (int i = 0; i < array->getNumberOfTuples(); i++)
 		{
-			for (int j = 0; j < length(array[i]); i++)
+			for (int j = 0; j < array->getNumberOfComponents(); i++)
 			{
-				if (array[i][j] != 0)
+				if (array->getComponent(i, j) != 0)
 				{
-					indices.push_back(i*length_x + j);
+					indices.push_back(i*array->getNumberOfComponents() + j);
 				}
 			}
 		}
@@ -712,35 +709,27 @@ public:
 		return indices;
 	}
 
-	template <typename T>
 	// -----------------------------------------------------------------------------
 	//
 	// -----------------------------------------------------------------------------
-	T** bitwiseMatrixCombination(T** matrix1, T** matrix2)
+	Int32ArrayType::Pointer bitwiseMatrixCombination(Int32ArrayType::Pointer matrix1, Int32ArrayType::Pointer matrix2)
 	{
-		T** result;
+		Int32ArrayType::Pointer result;
 
-		int matrix1_y = length(matrix1);
-		int matrix1_x = length(matrix1[0]);
-
-		int matrix2_y = length(matrix2);
-		int matrix2_x = length(matrix2[0]);
-
-		if (matrix1_x != matrix2_x ||
-			matrix1_y != matrix2_y)
+		if (matrix1->getNumberOfTuples() != matrix2->getNumberOfTuples() ||
+			matrix1->getNumberOfComponents() != matrix2->getNumberOfComponents())
 		{
 			result = nullptr;
 		}
 		else
 		{
-			result = new T*[matrix1_y];
+			result = Int32ArrayType::CreateArray(matrix1->getNumberOfTuples(), matrix1->getComponentDimensions(), "Bitwise Matrix Combination");
 
-			for (int y = 0; y < matrix1_y; y++)
+			for (int y = 0; y < matrix1->getNumberOfTuples(); y++)
 			{
-				for (int x = 0; x < matrix1_x; x++)
+				for (int x = 0; x < matrix1->getNumberOfComponents(); x++)
 				{
-					result[y] = new T[matrix1_x];
-					result[y][x] = matrix1[y][x] & matrix2[y][x];
+					result->setComponent(y, x, matrix1->getComponent(y, x) & matrix2->getComponent(y, x));
 				}
 			}
 		}
@@ -752,18 +741,18 @@ public:
 	// -----------------------------------------------------------------------------
 	//
 	// -----------------------------------------------------------------------------
-	void detectEllipse(int edgePair1x[], int edgePair2x[], int edgePair1y[], int edgePair2y[], int index, int axis_min, int axis_max, 
-		int dobj_x, int dobj_y, int** obj_mask_edge, double tol_ellipse, double ba_min, 
-		int& can_num, double* cenx_can, double* ceny_can, double* maj_can, double* min_can, double* rot_can, double* accum_can)
+	void detectEllipse(Int32ArrayType::Pointer edgePair1, Int32ArrayType::Pointer edgePair2, int index, int axis_min, int axis_max,
+		int dobj_x, int dobj_y, Int32ArrayType::Pointer obj_mask_edge, double tol_ellipse, double ba_min, 
+		int& can_num, DoubleArrayType::Pointer cenx_can, DoubleArrayType::Pointer ceny_can, DoubleArrayType::Pointer maj_can, DoubleArrayType::Pointer min_can, DoubleArrayType::Pointer rot_can, DoubleArrayType::Pointer accum_can)
 	{
 		const int daxis = axis_max - axis_min;
 		int axis_min_sq = axis_min * axis_min;
 
-		int x1 = edgePair1x[index];
-		int y1 = edgePair1y[index];
+		int x1 = edgePair1->getComponent(index, 0);
+		int y1 = edgePair1->getComponent(index, 1);
 
-		int x2 = edgePair2x[index];
-		int y2 = edgePair2y[index];
+		int x2 = edgePair2->getComponent(index, 0);
+		int y2 = edgePair2->getComponent(index, 1);
 
 		int x0 = (x1 + x2) / 2;
 		int y0 = (y1 + y2) / 2;
@@ -776,20 +765,13 @@ public:
 			accum[i] = 0;
 		}
 
-		cenx_can = new double[10];
-		ceny_can = new double[10];
-		maj_can = new double[10];
-		min_can = new double[10];
-		rot_can = new double[10];
-		accum_can = new double[10];
-
 		if (a >= axis_min && a <= axis_max)												// ED: Step 4
 		{
-			for (int k = 0; k < length(edgePair1x); k++)
+			for (int k = 0; k < edgePair1->getNumberOfTuples(); k++)
 			{
 
-				int x3 = edgePair1x[k];
-				int y3 = edgePair1y[k];
+				int x3 = edgePair1->getComponent(k, 0);
+				int y3 = edgePair1->getComponent(k, 0);
 
 				int dsq = (x3 - x0) ^ 2 + (y3 - y0) ^ 2;
 				int asq = a * a;
@@ -828,67 +810,71 @@ public:
 				if (b / a > ba_min) // Require a minimum aspect ratio
 				{
 					//Draw ellipse and compare to object
-					int *x_coord, *y_coord;
+					Int32ArrayType::Pointer coords;
 
-					PlotEllipsev2(round(x0), round(y0), round(a), round(b), alpha, x_coord, y_coord);
-					int x_coord_max = length(x_coord);
-					int y_coord_max = length(y_coord);
+					PlotEllipsev2(round(x0), round(y0), round(a), round(b), alpha, coords);
 
 					// create I_check as a 2D array and assign all values to zero
-					int **I_check = new int*[dobj_x];
+					QVector<size_t> I_check_dims(dobj_x);
+					I_check_dims.push_back(dobj_y);
+					
 					for (int i = 0; i < dobj_x; i++)
 					{
-						I_check[i] = new int[dobj_y];
-
+						I_check_dims[i] = dobj_y;
+					}
+					Int32ArrayType::Pointer I_check = Int32ArrayType::CreateArray(dobj_x, I_check_dims, "I check");
+					for (int i = 0; i < dobj_x; i++)
+					{
 						for (int j = 0; j < dobj_y; j++)
 						{
-							I_check[i][j] = 0;
+							I_check->setComponent(dobj_x, dobj_y, 0);
 						}
 					}
 
-					for (int k = 0; k < x_coord_max; k++)
+
+					for (int k = 0; k < coords->getNumberOfComponents(); k++)
 					{
-						if (x_coord[k] > 0 && x_coord[k] <= dobj_x &&
-							y_coord[k] > 0 && y_coord[k] <= dobj_y)
+						if (coords->getComponent(k, 0) > 0 && coords->getComponent(k, 0) <= dobj_x &&
+							coords->getComponent(k, 1) > 0 && coords->getComponent(k, 1) <= dobj_y)
 						{
-							I_check[x_coord[k]][y_coord[k]] = 1;
+							I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1), 1);
 
-							if (x_coord[k] + 1 <= dobj_x)
+							if (coords->getComponent(k, 0) + 1 <= dobj_x)
 							{
-								I_check[x_coord[k] + 1][y_coord[k]] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1), 1);
 							}
-							if (x_coord[k] - 1 > 0)
+							if (coords->getComponent(k, 0) - 1 > 0)
 							{
-								I_check[x_coord[k] - 1][y_coord[k]] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1), 1);
 							}
-							if (y_coord[k] + 1 <= dobj_y)
+							if (coords->getComponent(k, 1) + 1 <= dobj_y)
 							{
-								I_check[x_coord[k]][y_coord[k] + 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1) + 1, 1);
 							}
-							if (y_coord[k] - 1 > 0)
+							if (coords->getComponent(k, 1) - 1 > 0)
 							{
-								I_check[x_coord[k]][y_coord[k] - 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1) - 1, 1);
 							}
-							if (x_coord[k] + 1 <= dobj_x && y_coord[k] + 1 <= dobj_y)
+							if (coords->getComponent(k, 0) + 1 <= dobj_x && coords->getComponent(k, 1) + 1 <= dobj_y)
 							{
-								I_check[x_coord[k] + 1][y_coord[k] + 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1) + 1, 1);
 							}
-							if (x_coord[k] - 1 > 0 && y_coord[k] + 1 <= dobj_y)
+							if (coords->getComponent(k, 0) - 1 > 0 && coords->getComponent(k, 1) + 1 <= dobj_y)
 							{
-								I_check[x_coord[k] - 1][y_coord[k] + 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1) + 1, 1);
 							}
-							if (x_coord[k] + 1 <= dobj_x && y_coord[k] - 1 > 0)
+							if (coords->getComponent(k, 0) + 1 <= dobj_x && coords->getComponent(k, 1) - 1 > 0)
 							{
-								I_check[x_coord[k] + 1][y_coord[k] - 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1) - 1, 1);
 							}
-							if (x_coord[k] - 1 > 0 && y_coord[k] - 1 > 0)
+							if (coords->getComponent(k, 0) - 1 > 0 && coords->getComponent(k, 1) - 1 > 0)
 							{
-								I_check[x_coord[k] - 1][y_coord[k] - 1] = 1;
+								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1) - 1, 1);
 							}
 						}
 					}
 
-					int** combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
+					Int32ArrayType::Pointer combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
 					std::vector<int> overlap = findNonZeroIndices(combinedMatrix);
 
 					// Estimate perimeter length using Ramanujan'a approximation.
@@ -900,18 +886,15 @@ public:
 					if (overlap.size() > tol_pix)
 					{
 						// Accept point as a new candidate
-						cenx_can[can_num] = round(x0); //x - coordinate of ellipse
-						ceny_can[can_num] = round(y0); //y - coordinate of ellipse
-						maj_can[can_num] = round(a); //major semi - axis
-						min_can[can_num] = round(b); //minor semi - axis
-						rot_can[can_num] = alpha; //Counter clockwise rotation from x - axis
-						accum_can[can_num] = accum_max; //Accumulation matrix
+						cenx_can->setComponent(can_num, 0, round(x0)); //x - coordinate of ellipse
+						ceny_can->setComponent(can_num, 0, round(y0)); //y - coordinate of ellipse
+						maj_can->setComponent(can_num, 0, round(a)); //major semi - axis
+						min_can->setComponent(can_num, 0, round(b)); //minor semi - axis
+						rot_can->setComponent(can_num, 0, alpha); //Counter clockwise rotation from x - axis
+						accum_can->setComponent(can_num, 0, accum_max); //Accumulation matrix
 
 						can_num = can_num + 1;
 					}
-
-					delete[] x_coord;
-					delete[] y_coord;
 				}
 			}
 		}
