@@ -919,7 +919,7 @@ public:
 
             if (x >= 0 && x < dobj_x && y >= 0 && y < dobj_y)
             {
-              size_t index = (I_check_dims[0] * y) + x;
+              size_t index = (I_check_dims[0] * x) + y;
               I_check->setValue(index, 1);
 
               if (x + 1 < dobj_x)
