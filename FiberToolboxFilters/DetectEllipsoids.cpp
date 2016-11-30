@@ -260,20 +260,8 @@ public:
         obj_ext_num = 3;
       }
 
-      //********
-      QVector<size_t> edge_tDims;
-      edge_tDims.push_back(84);
-      edge_tDims.push_back(95);
-      size_t xDim = edge_tDims[0];
-      size_t yDim = edge_tDims[1];
-      SizeTArrayType::Pointer obj_edges;
-      //*******
-
-      SizeTArrayType::Pointer obj_edge_pair_a;
-      SizeTArrayType::Pointer obj_edge_pair_b;
-      SizeTArrayType::Pointer obj_edge_pair_a1;
-      SizeTArrayType::Pointer obj_edge_pair_b1;
-      for (int i=0; i<obj_ext_num; i++)
+      //for (int i=0; i<obj_ext_num; i++)
+      for (int i=0; i<1; i++)
       {
         size_t obj_ext_index = obj_ext_indices[i];
         //double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
@@ -282,11 +270,11 @@ public:
         size_t obj_ext_y = obj_ext_index % image_xDim;
         size_t obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
 
-        obj_edges = findNonZeroIndices<int8_t>(m_EdgesArray, edge_tDims);
-        obj_edge_pair_a = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_a");
-        obj_edge_pair_b = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_b");
-        obj_edge_pair_a1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_a1");
-        obj_edge_pair_b1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_b1");
+        SizeTArrayType::Pointer obj_edges = findNonZeroIndices<int8_t>(m_EdgesArray, image_tDims);
+        SizeTArrayType::Pointer obj_edge_pair_a = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_a");
+        SizeTArrayType::Pointer obj_edge_pair_b = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_b");
+        SizeTArrayType::Pointer obj_edge_pair_a1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_a1");
+        SizeTArrayType::Pointer obj_edge_pair_b1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_b1");
         int count = 0;
         for (int j=0; j<obj_edges->getNumberOfTuples(); j++)
         {
@@ -297,10 +285,10 @@ public:
             obj_edge_pair_a->setValue(count, edgeIndices.first);
             obj_edge_pair_b->setValue(count, edgeIndices.second);
 
-            size_t x1 = (edgeIndices.first % xDim);
-            size_t y1 = ((edgeIndices.first / xDim) % yDim);
-            size_t x2 = (edgeIndices.second % xDim);
-            size_t y2 = ((edgeIndices.second / xDim) % yDim);
+            size_t x1 = (edgeIndices.first % image_tDims[0]);
+            size_t y1 = ((edgeIndices.first / image_tDims[0]) % image_tDims[1]);
+            size_t x2 = (edgeIndices.second % image_tDims[0]);
+            size_t y2 = ((edgeIndices.second / image_tDims[0]) % image_tDims[1]);
 
             obj_edge_pair_a1->setComponent(count, 0, x1);
             obj_edge_pair_a1->setComponent(count, 1, y1);
@@ -316,7 +304,8 @@ public:
 
         // Search current object for ellipses
         size_t can_num = 1;
-        for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
+        //for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
+        for (int k = 0; k < 1; k++)
         {
           detectEllipse(obj_edge_pair_a1, obj_edge_pair_b1, k, image_tDims, m_EdgesArray, can_num, cenx_can, ceny_can, maj_can, min_can, rot_can, accum_can);
         }
@@ -361,15 +350,6 @@ public:
 
         std::cout << "Testing";
       }
-
-      //********
-      DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
-      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(featureId) + "_AM", QVector<size_t>(1, obj_edge_pair_a1->getNumberOfTuples()), AttributeMatrix::Type::Cell);
-      test_am->addAttributeArray(obj_edge_pair_a->getName(), obj_edge_pair_a);
-      test_am->addAttributeArray(obj_edge_pair_b->getName(), obj_edge_pair_b);
-      test_am->addAttributeArray(obj_edge_pair_a1->getName(), obj_edge_pair_a1);
-      test_am->addAttributeArray(obj_edge_pair_b1->getName(), obj_edge_pair_b1);
-      //*******
 
       if (m_Filter->getCancel())
       {
@@ -857,8 +837,9 @@ public:
     const int daxis = m_Axis_Max - m_Axis_Min;
     int axis_min_sq = m_Axis_Min * m_Axis_Min;
 
-    double dobj_x = obj_tDims[0];
-    double dobj_y = obj_tDims[1];
+    // Matlab is column-based, so x & y are swapped
+    double dobj_x = obj_tDims[1];
+    double dobj_y = obj_tDims[0];
 
     double x1 = obj_edge_pair_a1->getComponent(index, 1);
     double y1 = obj_edge_pair_a1->getComponent(index, 0);
@@ -868,13 +849,13 @@ public:
 
     double x0 = (x1 + x2) / 2;
     double y0 = (y1 + y2) / 2;
-    double a = sqrt(std::pow((x2 - x1), 2) + std::pow((y2 - y1), 2)) / 2;          // Equation 3
-    double alpha = atan2(y2 - y1, x2 - x1);                      // Equation 4
+    double a = sqrt(std::pow((x2 - x1), 2) + std::pow((y2 - y1), 2)) / 2;
+    double alpha = atan2(y2 - y1, x2 - x1);
 
     SizeTArrayType::Pointer accum = SizeTArrayType::CreateArray(daxis, QVector<size_t>(1, 1), "Accumulator");
     accum->initializeWithZeros();
 
-    if (a >= m_Axis_Min && a <= m_Axis_Max)												// ED: Step 4
+    if (a >= m_Axis_Min && a <= m_Axis_Max)
     {
       for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
       {
@@ -885,126 +866,132 @@ public:
         double dsq = std::pow((x3 - x0), 2) + std::pow((y3 - y0), 2);
         double asq = a * a;
 
-        if (dsq > axis_min_sq && dsq < asq)										// ED: Step 6
+        if (dsq > axis_min_sq && dsq < asq)
         {
           double d = sqrt(dsq);
           double fsq = std::pow((x3 - x2), 2) + std::pow((y3 - y2), 2);
 
-          double costau = (asq + dsq - fsq) / (2 * a*d);			// Equation 6
+          double costau = (asq + dsq - fsq) / (2 * a*d);
 
           double costau_sq = costau * costau;
           double sintau_sq = 1 - costau_sq;
 
-          double bsq = (asq * dsq * sintau_sq) / (asq - dsq * costau_sq);     // Equation 5
+          double bsq = (asq * dsq * sintau_sq) / (asq - dsq * costau_sq);
 
           double b = sqrt(bsq);
 
           //Add one to count from one
-          int bidx = static_cast<int>(std::round(b) - m_Axis_Min + 1);									// ED: Step 7
+          int bidx = static_cast<int>(std::round(b) - m_Axis_Min + 1);
 
           if (bidx <= daxis && bidx > 0)
           {
             size_t value = accum->getValue(bidx);
-            accum->setValue(bidx, value + 1);										// ED: Step 8
+            accum->setValue(bidx, value + 1);
           }
         }
       }
 
-      int accum_idx = getIdOfMax(accum);												// ED: Step 10
+      int accum_idx = getIdOfMax(accum);
       double accum_max = accum->getValue(accum_idx);
 
-      if (accum_max > 5) // Check any ellipse with accum > 3
+      if (accum_max > 5)
       {
-        double b = accum_idx + m_Axis_Min - 1; //subtract one to count from zero
+        double b = accum_idx + m_Axis_Min - 1;
 
-        if (b / a > m_Ba_Min) // Require a minimum aspect ratio
+        if (b / a > m_Ba_Min)
         {
           //Draw ellipse and compare to object
-          SizeTArrayType::Pointer ellipseCoords = plotEllipsev2(std::round(x0), std::round(y0), std::round(a), std::round(b), alpha);
+          DoubleArrayType::Pointer ellipseCoords = plotEllipsev2(std::round(x0), std::round(y0), std::round(a), std::round(b), alpha);
 
           // create I_check as a 2D array and assign all values to zero
-          QVector<size_t> I_check_dims(dobj_x);
+          QVector<size_t> I_check_dims;
           I_check_dims.push_back(dobj_y);
+          I_check_dims.push_back(dobj_x);
 
-          for (int i = 0; i < dobj_x; i++)
+          SizeTArrayType::Pointer I_check = SizeTArrayType::CreateArray(I_check_dims, QVector<size_t>(1, 1), "I_check");
+          I_check->initializeWithZeros();
+
+
+          for (int k = 0; k < ellipseCoords->getNumberOfTuples(); k++)
           {
-            I_check_dims[i] = dobj_y;
-          }
-          SizeTArrayType::Pointer I_check = SizeTArrayType::CreateArray(dobj_x, I_check_dims, "I check");
-          for (int i = 0; i < dobj_x; i++)
-          {
-            for (int j = 0; j < dobj_y; j++)
+            double x = ellipseCoords->getComponent(k, 0);
+            double y = ellipseCoords->getComponent(k, 1);
+
+            if (x >= 0 && x < dobj_x && y >= 0 && y < dobj_y)
             {
-              I_check->setComponent(dobj_x, dobj_y, 0);
+              size_t index = (I_check_dims[0] * y) + x;
+              I_check->setValue(index, 1);
+
+              if (x + 1 < dobj_x)
+              {
+                size_t index = (I_check_dims[0] * (x + 1)) + y;
+                I_check->setValue(index, 1);
+              }
+              if (x - 1 >= 0)
+              {
+                size_t index = (I_check_dims[0] * (x - 1)) + y;
+                I_check->setValue(index, 1);
+              }
+              if (y + 1 < dobj_y)
+              {
+                size_t index = (I_check_dims[0] * x) + (y + 1);
+                I_check->setValue(index, 1);
+              }
+              if (y - 1 >= 0)
+              {
+                size_t index = (I_check_dims[0] * x) + (y - 1);
+                I_check->setValue(index, 1);
+              }
+              if (x + 1 < dobj_x && y + 1 < dobj_y)
+              {
+                size_t index = (I_check_dims[0] * (x + 1)) + (y + 1);
+                I_check->setValue(index, 1);
+              }
+              if (x - 1 >= 0 && y + 1 < dobj_y)
+              {
+                size_t index = (I_check_dims[0] * (x - 1)) + (y + 1);
+                I_check->setValue(index, 1);
+              }
+              if (x + 1 < dobj_x && y - 1 >= 0)
+              {
+                size_t index = (I_check_dims[0] * (x + 1)) + (y - 1);
+                I_check->setValue(index, 1);
+              }
+              if (x - 1 >= 0 && y - 1 >= 0)
+              {
+                size_t index = (I_check_dims[0] * (x - 1)) + (y - 1);
+                I_check->setValue(index, 1);
+              }
             }
           }
 
+          //********
+          DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
+          AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, "Test_AM", I_check_dims, AttributeMatrix::Type::Cell);
+          test_am->addAttributeArray(I_check->getName(), I_check);
+          //*******
 
-          for (int k = 0; k < ellipseCoords->getNumberOfComponents(); k++)
-          {
-            size_t ellipse_x = ellipseCoords->getComponent(k, 0);
-            size_t ellipse_y = ellipseCoords->getComponent(k, 1);
+//          SizeTArrayType::Pointer combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
+//          SizeTArrayType::Pointer overlap = findNonZeroIndices<size_t>(combinedMatrix, I_check_dims);
 
-            if (ellipse_x > 0 && ellipse_x <= dobj_x && ellipse_y > 0 && ellipse_y <= dobj_y)
-            {
-              I_check->setComponent(ellipse_x, ellipse_y, 1);
+//          // Estimate perimeter length using Ramanujan'a approximation.
+//          double perim = M_PI * (3 * (a + b) - sqrt((3 * a + b)*(a + 3 * b)));
+//          // Calculate pixel tolerance based on
+//          // the calculated perimeter
+//          double tol_pix = std::round(perim * m_TolEllipse);
 
-              if (ellipse_x + 1 <= dobj_x)
-              {
-                I_check->setComponent(ellipse_x + 1, ellipse_y, 1);
-              }
-              if (ellipse_x - 1 > 0)
-              {
-                I_check->setComponent(ellipse_x - 1, ellipse_y, 1);
-              }
-              if (ellipse_y + 1 <= dobj_y)
-              {
-                I_check->setComponent(ellipse_x, ellipse_y + 1, 1);
-              }
-              if (ellipse_y - 1 > 0)
-              {
-                I_check->setComponent(ellipse_x, ellipse_y - 1, 1);
-              }
-              if (ellipse_x + 1 <= dobj_x && ellipse_y + 1 <= dobj_y)
-              {
-                I_check->setComponent(ellipse_x + 1, ellipse_y + 1, 1);
-              }
-              if (ellipse_x - 1 > 0 && ellipse_y + 1 <= dobj_y)
-              {
-                I_check->setComponent(ellipse_x - 1, ellipse_y + 1, 1);
-              }
-              if (ellipse_x + 1 <= dobj_x && ellipse_y - 1 > 0)
-              {
-                I_check->setComponent(ellipse_x + 1, ellipse_y - 1, 1);
-              }
-              if (ellipse_x - 1 > 0 && ellipse_y - 1 > 0)
-              {
-                I_check->setComponent(ellipse_x - 1, ellipse_y - 1, 1);
-              }
-            }
-          }
+//          if (overlap->getNumberOfTuples() > tol_pix)
+//          {
+//            // Accept point as a new candidate
+//            cenx_can->setComponent(can_num, 0, std::round(x0)); //x - coordinate of ellipse
+//            ceny_can->setComponent(can_num, 0, std::round(y0)); //y - coordinate of ellipse
+//            maj_can->setComponent(can_num, 0, std::round(a)); //major semi - axis
+//            min_can->setComponent(can_num, 0, std::round(b)); //minor semi - axis
+//            rot_can->setComponent(can_num, 0, alpha); //Counter clockwise rotation from x - axis
+//            accum_can->setComponent(can_num, 0, accum_max); //Accumulation matrix
 
-          SizeTArrayType::Pointer combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
-          SizeTArrayType::Pointer overlap = findNonZeroIndices<size_t>(combinedMatrix, I_check_dims);
-
-          // Estimate perimeter length using Ramanujan'a approximation.
-          double perim = M_PI * (3 * (a + b) - sqrt((3 * a + b)*(a + 3 * b)));
-          // Calculate pixel tolerance based on
-          // the calculated perimeter
-          double tol_pix = std::round(perim * m_TolEllipse);
-
-          if (overlap->getNumberOfTuples() > tol_pix)
-          {
-            // Accept point as a new candidate
-            cenx_can->setComponent(can_num, 0, std::round(x0)); //x - coordinate of ellipse
-            ceny_can->setComponent(can_num, 0, std::round(y0)); //y - coordinate of ellipse
-            maj_can->setComponent(can_num, 0, std::round(a)); //major semi - axis
-            min_can->setComponent(can_num, 0, std::round(b)); //minor semi - axis
-            rot_can->setComponent(can_num, 0, alpha); //Counter clockwise rotation from x - axis
-            accum_can->setComponent(can_num, 0, accum_max); //Accumulation matrix
-
-            can_num = can_num + 1;
-          }
+//            can_num = can_num + 1;
+//          }
         }
       }
     }
@@ -1013,20 +1000,17 @@ public:
   // -----------------------------------------------------------------------------
   //
   // -----------------------------------------------------------------------------
-  SizeTArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta) const
+  DoubleArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta) const
   {
     // xc, yc = center of ellipse
     // p, q = length of semi-major and semi-minor axes, respectively
     // theta = angle of counterclockwise rotation of major axis from x-axis in radians
 
-    //    if(isreal(xc) == 0 || isreal(yc) == 0 || isreal(p) == 0 || isreal(q) == 0 || isreal(theta) == 0)
-    //    {
-    //      display('Error: Input must be real valued!');
-    //      x_coord = NaN;
-    //      y_coord = NaN;
-    //      count = NaN;
-    //      return;
-    //    }
+//    if(isreal(xc) == 0 || isreal(yc) == 0 || isreal(p) == 0 || isreal(q) == 0 || isreal(theta) == 0)
+//    {
+//      // Error: Input must be real valued!
+//      return DoubleArrayType::NullPointer();
+//    }
 
     // theta must statisfy: -M_PI/2 < theta <= M_PI/2 (can be rotated due to symmetry)
     while(theta > M_PI/2)
@@ -1087,8 +1071,14 @@ public:
     // (Note this is a bad approximation if the eccentricity is high)
     size_t perim = static_cast<size_t>(std::ceil( (M_PI * sqrt( 2 * (p*p + q*q) - std::pow((p-q), 2) / 2)) ));
     // Preallocate array using estimated perimeter
-    SizeTArrayType::Pointer ellipseCoords = SizeTArrayType::CreateArray(perim, QVector<size_t>(1, 2), "Ellipse Coordinates");
-    size_t count = 1;
+    DoubleArrayType::Pointer ellipseCoords = DoubleArrayType::CreateArray(perim, QVector<size_t>(1, 2), "Ellipse Coordinates");
+    for (int i=0; i < ellipseCoords->getNumberOfTuples(); i++)
+    {
+      ellipseCoords->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
+      ellipseCoords->setComponent(i, 1, std::numeric_limits<double>::quiet_NaN());
+    }
+
+    size_t count = 0;
 
     if( x <= 0 && y <= 0 ) // (-xa,-ya) is in the third quadrant or on the x axis
     {
