@@ -67,6 +67,14 @@
 // Include the MOC generated file for this class
 #include "moc_DetectEllipsoids.cpp"
 
+#define STORE_PIXEL_VALUES(array, count)\
+  array->setComponent(count, 0, xc+x);\
+  array->setComponent(count, 1, yc+y);\
+  count++;\
+  array->setComponent(count, 0, xc-x);\
+  array->setComponent(count, 1, yc-y);\
+  count++;\
+
 /**
  * @brief The DetectEllipsoidsImpl class implements a threaded algorithm that detects ellipsoids in a FeatureIds array
  */
@@ -87,12 +95,17 @@ class DetectEllipsoidsImpl
   Int32ArrayType::Pointer         m_ConvOffsetArray;
   std::vector<double>             m_SmoothKernel;
   Int32ArrayType::Pointer         m_SmoothOffsetArray;
+  double                          m_Axis_Min;
+  double                          m_Axis_Max;
+  float                           m_TolEllipse;
+  float                           m_Ba_Min;
 
 public:
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, Int8ArrayType::Pointer edgesArray, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t totalNumOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray) :
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, Int8ArrayType::Pointer edgesArray, size_t cellFeatureIdsDims[3], UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t totalNumOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max,
+  float tol_ellipse, float ba_min) :
     m_Filter(filter),
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
     m_EdgesArray(edgesArray),
@@ -106,34 +119,46 @@ public:
     m_ConvKernel_tDims(kernel_tDims),
     m_ConvOffsetArray(convOffsetArray),
     m_SmoothKernel(smoothFil),
-    m_SmoothOffsetArray(smoothOffsetArray)
+    m_SmoothOffsetArray(smoothOffsetArray),
+    m_Axis_Min(axis_min),
+    m_Axis_Max(axis_max),
+    m_TolEllipse(tol_ellipse),
+    m_Ba_Min(ba_min)
   {
     m_CellFeatureIdsDims[0] = cellFeatureIdsDims[0];
     m_CellFeatureIdsDims[1] = cellFeatureIdsDims[1];
     m_CellFeatureIdsDims[2] = cellFeatureIdsDims[2];
   }
 
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
   virtual ~DetectEllipsoidsImpl()
   {
   }
 
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
   void operator()() const
   {
+    // Initialize temporary arrays for candidate ellipse and accumulation counter
+    SizeTArrayType::Pointer cenx_can = SizeTArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. X-Coordinate of Ellipse"); // x-coordinate of ellipse
+    SizeTArrayType::Pointer ceny_can = SizeTArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. Y-Coordinate of Ellipse"); // y-coordinate of ellipse
+    SizeTArrayType::Pointer maj_can = SizeTArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. Major Semi-Axis"); // major semi-axis
+    SizeTArrayType::Pointer min_can = SizeTArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. Minor Semi-Axis"); // minor semi-axis
+    DoubleArrayType::Pointer rot_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. Counter-Clockwise Rotation From X-Axis"); // Counter clockwise rotation from x-axis
+    SizeTArrayType::Pointer accum_can = SizeTArrayType::CreateArray(10, QVector<size_t>(1, 1), "Temp. Accumulation Matrix"); // Accumulation matrix
+
     //std::cout << "Feature Start: " << m_FeatureIdStart << "\tFeature End: " << m_FeatureIdEnd << std::endl;
-    for(int i = m_FeatureIdStart; i < m_FeatureIdEnd; i++)
+    for(int featureId = m_FeatureIdStart; featureId < m_FeatureIdEnd; featureId++)
     {
-      size_t topL_X = m_Corners->getComponent(i, 0);
-      size_t topL_Y = m_Corners->getComponent(i, 1);
-      size_t topL_Z = m_Corners->getComponent(i, 2);
-      size_t bottomR_X = m_Corners->getComponent(i, 3);
-      size_t bottomR_Y = m_Corners->getComponent(i, 4);
-      size_t bottomR_Z = m_Corners->getComponent(i, 5);
+      size_t topL_X = m_Corners->getComponent(featureId, 0);
+      size_t topL_Y = m_Corners->getComponent(featureId, 1);
+      size_t topL_Z = m_Corners->getComponent(featureId, 2);
+      size_t bottomR_X = m_Corners->getComponent(featureId, 3);
+      size_t bottomR_Y = m_Corners->getComponent(featureId, 4);
+      size_t bottomR_Z = m_Corners->getComponent(featureId, 5);
 
       size_t obj_xDim = bottomR_X - topL_X + 1;
       size_t obj_yDim = bottomR_Y - topL_Y + 1;
@@ -154,8 +179,8 @@ public:
       QVector<size_t> cDims(1, 1);
       DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(image_tDims, cDims, "Feature Object");
       featureObjArray->initializeWithZeros();
-      Int8ArrayType::Pointer edgeArray = Int8ArrayType::CreateArray(image_tDims, cDims, "Feature Object Edges");
-      edgeArray->initializeWithZeros();
+      //Int8ArrayType::Pointer edgeArray = Int8ArrayType::CreateArray(image_tDims, cDims, "Feature Object Edges");
+      //edgeArray->initializeWithZeros();
 
       for (size_t z = topL_Z; z <= bottomR_Z; z++)
       {
@@ -169,13 +194,13 @@ public:
             size_t objIndex = (image_yDim * image_xDim * objZ) + (image_xDim * (objY+1)) + (objX+1);
             size_t imageIndex = (m_CellFeatureIdsDims[1] * m_CellFeatureIdsDims[0] * z) + (m_CellFeatureIdsDims[0] * y) + x;
             double featureValue = m_CellFeatureIdsPtr[imageIndex];
-            int8_t edgesValue = m_EdgesArray->getValue(imageIndex);
+            //int8_t edgesValue = m_EdgesArray->getValue(imageIndex);
 
-            if (edgesValue > 1) { edgesValue = 1; }
+            //if (edgesValue > 1) { edgesValue = 1; }
             if (featureValue > 1.0) { featureValue = 1.0; }
 
             featureObjArray->setValue(objIndex, featureValue);
-            edgeArray->setValue(objIndex, edgesValue);
+            //edgeArray->setValue(objIndex, edgesValue);
           }
         }
       }
@@ -193,61 +218,157 @@ public:
       DE_ComplexDoubleVector gradY_conv = convoluteImage(gradY, m_ConvCoords_Y, m_ConvOffsetArray, image_tDims);
 
       DoubleArrayType::Pointer obj_conv_mag = DoubleArrayType::CreateArray(gradX_conv.size(), QVector<size_t>(1, 1), "obj_conv_mag");
-      for (int j=0; j < gradX_conv.size(); j++)
+      for (int i=0; i < gradX_conv.size(); i++)
       {
-        std::complex<double> complexValue = gradX_conv[j] + gradY_conv[j];
+        std::complex<double> complexValue = gradX_conv[i] + gradY_conv[i];
 
         // Calculate magnitude of convolution
         double value = std::abs(complexValue);
-        obj_conv_mag->setValue(j, value);
+        obj_conv_mag->setValue(i, value);
       }
 
       // Smooth Accumulator with Smoothing filter
       std::vector<double> obj_conv_mag_smooth = convoluteImage(obj_conv_mag, m_SmoothKernel, m_SmoothOffsetArray, image_tDims);
       double obj_conv_max = 0;
-      for (int j=0; j<obj_conv_mag_smooth.size(); j++)
+      for (int i=0; i<obj_conv_mag_smooth.size(); i++)
       {
         // Find max peak to set threshold
-        if (obj_conv_mag_smooth[j] > obj_conv_max)
+        if (obj_conv_mag_smooth[i] > obj_conv_max)
         {
-          obj_conv_max = obj_conv_mag_smooth[j];
+          obj_conv_max = obj_conv_mag_smooth[i];
         }
-        obj_conv_mag->setValue(j, obj_conv_mag_smooth[j]);
+        obj_conv_mag->setValue(i, obj_conv_mag_smooth[i]);
       }
 
       // Threshold convolution
       DoubleArrayType::Pointer obj_conv_thresh = DoubleArrayType::CreateArray(obj_conv_mag->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_conv_thresh");
       obj_conv_thresh->initializeWithZeros();
-      for (int j=0; j<obj_conv_thresh->getNumberOfTuples(); j++)
+      for (int i=0; i<obj_conv_thresh->getNumberOfTuples(); i++)
       {
-        if (obj_conv_mag->getValue(j) > (0.7 * obj_conv_max))
+        if (obj_conv_mag->getValue(i) > (0.7 * obj_conv_max))
         {
-          double value = obj_conv_mag->getValue(j);
-          obj_conv_thresh->setValue(j, value);
+          double value = obj_conv_mag->getValue(i);
+          obj_conv_thresh->setValue(i, value);
         }
       }
 
       std::vector<int> obj_ext_indices = findExtrema(obj_conv_thresh, image_tDims);
+      int obj_ext_num = obj_ext_indices.size();
 
-//      for (int i=0; i<obj_ext_indices.size(); i++)
-//      {
-//        int obj_ext_index = obj_ext_indices[i];
-//        double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
+      if(obj_ext_num > 3)
+      {
+        obj_ext_num = 3;
+      }
 
-//        // Get Indices of the largest value
-//        int obj_ext_y = obj_ext_index % image_xDim;
-//        int obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
-//        int obj_ext_z = (((obj_ext_index / image_xDim) / image_yDim) % zDim);
-//      }
+      //********
+      QVector<size_t> edge_tDims;
+      edge_tDims.push_back(84);
+      edge_tDims.push_back(95);
+      size_t xDim = edge_tDims[0];
+      size_t yDim = edge_tDims[1];
+      SizeTArrayType::Pointer obj_edges;
+      //*******
+
+      SizeTArrayType::Pointer obj_edge_pair_a;
+      SizeTArrayType::Pointer obj_edge_pair_b;
+      SizeTArrayType::Pointer obj_edge_pair_a1;
+      SizeTArrayType::Pointer obj_edge_pair_b1;
+      for (int i=0; i<obj_ext_num; i++)
+      {
+        size_t obj_ext_index = obj_ext_indices[i];
+        //double obj_ext = obj_conv_thresh->getValue(obj_ext_index);
+
+        // Get indices of extrema value
+        size_t obj_ext_y = obj_ext_index % image_xDim;
+        size_t obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
+
+        obj_edges = findNonZeroIndices<int8_t>(m_EdgesArray, edge_tDims);
+        obj_edge_pair_a = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_a");
+        obj_edge_pair_b = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_b");
+        obj_edge_pair_a1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_a1");
+        obj_edge_pair_b1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_b1");
+        int count = 0;
+        for (int j=0; j<obj_edges->getNumberOfTuples(); j++)
+        {
+          QPair<size_t,size_t> edgeIndices = plotlineEdgeInter(obj_ext_x, obj_ext_y, obj_edges->getComponent(j, 1), obj_edges->getComponent(j, 0), featureObjArray, image_tDims);
+
+          if (edgeIndices.first != 0 && edgeIndices.second != 0)
+          {
+            obj_edge_pair_a->setValue(count, edgeIndices.first);
+            obj_edge_pair_b->setValue(count, edgeIndices.second);
+
+            size_t x1 = (edgeIndices.first % xDim);
+            size_t y1 = ((edgeIndices.first / xDim) % yDim);
+            size_t x2 = (edgeIndices.second % xDim);
+            size_t y2 = ((edgeIndices.second / xDim) % yDim);
+
+            obj_edge_pair_a1->setComponent(count, 0, x1);
+            obj_edge_pair_a1->setComponent(count, 1, y1);
+            obj_edge_pair_b1->setComponent(count, 0, x2);
+            obj_edge_pair_b1->setComponent(count, 1, y2);
+            count++;
+          }
+        }
+        obj_edge_pair_a->resize(count);
+        obj_edge_pair_b->resize(count);
+        obj_edge_pair_a1->resize(count);
+        obj_edge_pair_b1->resize(count);
+
+        // Search current object for ellipses
+        size_t can_num = 1;
+        for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
+        {
+          detectEllipse(obj_edge_pair_a1, obj_edge_pair_b1, k, image_tDims, m_EdgesArray, can_num, cenx_can, ceny_can, maj_can, min_can, rot_can, accum_can);
+        }
+
+        //        if(can_num > 1) // Assume best match is the ellipse
+        //        {
+        //          [~,accum_idx] = max(accum_can);
+
+        //          // Store ellipse parameters
+        //          cenx(ellip_count) = cenx_can(accum_idx);
+        //          ceny(ellip_count) = ceny_can(accum_idx);
+        //          majaxis(ellip_count) = maj_can(accum_idx);
+        //          minaxis(ellip_count) = min_can(accum_idx);
+        //          rotangle(ellip_count) = rot_can(accum_idx);
+
+        //          // Remove pixels from object (including additional 1 pixel thick boarder) and reassign remaining pixels to array
+
+        //          [I_tmp] = fillellipse(cenx(ellip_count),...
+        //              ceny(ellip_count),majaxis(ellip_count)+1,...
+        //              minaxis(ellip_count)+1,rotangle(ellip_count),...
+        //              ones(size(I_obj)),0);
+
+        //          I_obj = I_obj.*I_tmp;
+
+        //          %Translate center of ellipse into real space
+        //          cenx(ellip_count) = cenx(ellip_count) + obj_x_min;
+        //          ceny(ellip_count) = ceny(ellip_count) + obj_y_min;
+
+        //          %Increment counter
+        //          ellip_count = ellip_count + 1;
+
+        //          %% Clean Accumulator
+        //          accum_can(1:can_num-1) = 0;
+
+        //          % Eliminate patches smaller than minimum fiber cross section
+        //          I_obj = bwareaopen(I_obj,min_pix);
+
+        //          numObjPixels = length(find(I_obj));
+
+        //          break;
+        //        }
+
+        std::cout << "Testing";
+      }
 
       //********
       DataContainer::Pointer test_dc = m_Filter->getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(m_Filter, "TestDataContainer");
-      QVector<size_t> test_am_tDims;
-      test_am_tDims.push_back(image_xDim);
-      test_am_tDims.push_back(image_yDim);
-
-      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(i) + "_AM", image_tDims, AttributeMatrix::Type::Cell);
-      test_am->addAttributeArray(obj_conv_thresh->getName(), obj_conv_thresh);
+      AttributeMatrix::Pointer test_am = test_dc->createNonPrereqAttributeMatrix<AbstractFilter>(m_Filter, QString::number(featureId) + "_AM", QVector<size_t>(1, obj_edge_pair_a1->getNumberOfTuples()), AttributeMatrix::Type::Cell);
+      test_am->addAttributeArray(obj_edge_pair_a->getName(), obj_edge_pair_a);
+      test_am->addAttributeArray(obj_edge_pair_b->getName(), obj_edge_pair_b);
+      test_am->addAttributeArray(obj_edge_pair_a1->getName(), obj_edge_pair_a1);
+      test_am->addAttributeArray(obj_edge_pair_b1->getName(), obj_edge_pair_b1);
       //*******
 
       if (m_Filter->getCancel())
@@ -261,9 +382,9 @@ public:
     }
   }
 
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
   template <typename T>
   std::vector<T> convoluteImage(DoubleArrayType::Pointer image, std::vector<T> kernel, Int32ArrayType::Pointer offsetArray, QVector<size_t> image_tDims) const
   {
@@ -470,437 +591,929 @@ public:
       extrema.push_back(extremaIndex);
     }
 
-    if (extrema.size() > 1)
-    {
-      std::cout << "Testing";
-    }
-
     return extrema;
   }
 
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	// helper method - grabs index from matrix size
-	int sub2ind(int matrixSize[2], int row, int col)
-	{
-		return row * matrixSize[1] + col;
-	}
-
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	int* plotlineEdgeInter(int x0, int y0, int x1, int y1, DoubleArrayType::Pointer binImage, int imageDims[2])
-	{
-		int* edge = new int[2];
-
-		// store initial point
-		int xi = x0;
-		int yi = y0;
-
-		int dx = abs(x1 - x0);
-		int dy = abs(y1 - y0);
-
-		int sx, sy;
-
-		if (x0 < x1)
-			sx = 1;
-		else
-			sx = -1;
-
-		if (y0 < y1)
-			sy = 1;
-		else
-			sy = -1;
-
-		int err = dx - dy;
-		int e2;
-
-		if (err == 0)
-		{
-			edge[0] = 0;
-			edge[1] = 0;
-			return edge;
-		}
-
-		//Search forward
-		while (true)
-		{
-			if (binImage->getComponent(sub2ind(imageDims, x0, y0), 0) == 0)
-			{
-				if (x0 == x1 && y0 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 == x1 && y0 + 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 + 1 == x1 && y0 + 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 + 1 == x1 && y0 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 + 1 == x1 && y0 - 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 == x1 && y0 - 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 - 1 == x1 && y0 - 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 - 1 == x1 && y0 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else if (x0 - 1 == x1 && y0 + 1 == y1)
-				{
-					edge[0] = sub2ind(imageDims, x1, y1);
-					break;
-				}
-				else
-				{
-					edge[0] = 0;
-					edge[1] = 0;
-					return edge;
-				}
-			}
-
-
-
-			e2 = 2 * err;
-
-			if (e2 > -dy)
-			{
-				err -= dy;
-				x0 += sx;
-			}
-
-			if (e2 < dx)
-			{
-				err += dx;
-				y0 += sy;
-			}
-		}
-
-		// Reverse direction!
-		x0 = xi;
-		y0 = yi;
-
-		if (x0 > x1)
-			sx = 1;
-		else
-			sx = -1;
-
-		if (y0 > y1)
-			sy = 1;
-		else
-			sy = -1;
-
-		err = dx - dy;
-
-		while (true)
-		{
-			if (binImage->getComponent(sub2ind(imageDims, x0, y0), 0) == 0)
-			{
-				edge[1] = sub2ind(imageDims, x0, y0);
-				break;
-			}
-
-			e2 = 2 * err;
-
-			if (e2 > -dy)
-			{
-				err -= dy;
-				x0 += sx;
-			}
-
-			if (e2 < dx)
-			{
-				err += dx;
-				y0 += sy;
-			}
-		}
-
-		return edge;
-	}
-
-	template <typename T>
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	int length(T* array)
-	{
-		if (array == nullptr)
-			return 0;
-
-		int arraySize = sizeof(array);
-
-		if (arraySize <= 0)
-			return 0;
-
-		return arraySize / sizeof(array[0]);
-	}
-
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	int getIdOfMax(double* array)
-	{
-		if (array == nullptr)
-			return -1;
-
-		int arrayLength = length(array);
-
-		if (arrayLength <= 0)
-			return -1;
-
-		double maxId = -1;
-		double maxValue = std::numeric_limits<double>::min();
-
-		for (int i = 0; i < arrayLength; i++)
-		{
-			if (array[i] > maxValue)
-			{
-				maxValue = array[i];
-				maxId = i;
-			}
-		}
-
-		return maxId;
-	}
-
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	std::vector<int> findNonZeroIndices(Int32ArrayType::Pointer array)
-	{
-		std::vector<int> indices;
-
-		if (array == nullptr)
-			return indices;
-
-		for (int i = 0; i < array->getNumberOfTuples(); i++)
-		{
-			for (int j = 0; j < array->getNumberOfComponents(); i++)
-			{
-				if (array->getComponent(i, j) != 0)
-				{
-					indices.push_back(i*array->getNumberOfComponents() + j);
-				}
-			}
-		}
-
-		return indices;
-	}
-
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	Int32ArrayType::Pointer bitwiseMatrixCombination(Int32ArrayType::Pointer matrix1, Int32ArrayType::Pointer matrix2)
-	{
-		Int32ArrayType::Pointer result;
-
-		if (matrix1->getNumberOfTuples() != matrix2->getNumberOfTuples() ||
-			matrix1->getNumberOfComponents() != matrix2->getNumberOfComponents())
-		{
-			result = nullptr;
-		}
-		else
-		{
-			result = Int32ArrayType::CreateArray(matrix1->getNumberOfTuples(), matrix1->getComponentDimensions(), "Bitwise Matrix Combination");
-
-			for (int y = 0; y < matrix1->getNumberOfTuples(); y++)
-			{
-				for (int x = 0; x < matrix1->getNumberOfComponents(); x++)
-				{
-					result->setComponent(y, x, matrix1->getComponent(y, x) & matrix2->getComponent(y, x));
-				}
-			}
-		}
-
-		return result;
-	}
-
-
-	// -----------------------------------------------------------------------------
-	//
-	// -----------------------------------------------------------------------------
-	void detectEllipse(Int32ArrayType::Pointer edgePair1, Int32ArrayType::Pointer edgePair2, int index, int axis_min, int axis_max,
-		int dobj_x, int dobj_y, Int32ArrayType::Pointer obj_mask_edge, double tol_ellipse, double ba_min, 
-		int& can_num, DoubleArrayType::Pointer cenx_can, DoubleArrayType::Pointer ceny_can, DoubleArrayType::Pointer maj_can, DoubleArrayType::Pointer min_can, DoubleArrayType::Pointer rot_can, DoubleArrayType::Pointer accum_can)
-	{
-		const int daxis = axis_max - axis_min;
-		int axis_min_sq = axis_min * axis_min;
-
-		int x1 = edgePair1->getComponent(index, 0);
-		int y1 = edgePair1->getComponent(index, 1);
-
-		int x2 = edgePair2->getComponent(index, 0);
-		int y2 = edgePair2->getComponent(index, 1);
-
-		int x0 = (x1 + x2) / 2;
-		int y0 = (y1 + y2) / 2;
-		double a = sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) / 2;          // Equation 3
-		int alpha = atan2(y2 - y1, x2 - x1);                      // Equation 4
-		
-		double* accum = new double[daxis];
-		for (int i = 0; i < daxis; i++)
-		{
-			accum[i] = 0;
-		}
-
-		if (a >= axis_min && a <= axis_max)												// ED: Step 4
-		{
-			for (int k = 0; k < edgePair1->getNumberOfTuples(); k++)
-			{
-
-				int x3 = edgePair1->getComponent(k, 0);
-				int y3 = edgePair1->getComponent(k, 0);
-
-				int dsq = (x3 - x0) ^ 2 + (y3 - y0) ^ 2;
-				int asq = a * a;
-
-				if (dsq > axis_min_sq && dsq < asq)										// ED: Step 6
-				{
-					double d = sqrt(dsq);
-					int fsq = (x3 - x2) ^ 2 + (y3 - y2) ^ 2;
-
-					double costau = (asq + dsq - fsq) / (2 * a*d);			// Equation 6
-
-					double costau_sq = costau * costau;
-					double sintau_sq = 1 - costau_sq;
-
-					double bsq = (asq * dsq * sintau_sq) / (asq - dsq * costau_sq);     // Equation 5
-
-					double b = sqrt(bsq);
-
-					//Add one to count from one
-					int bidx = round(b) - axis_min + 1;									// ED: Step 7
-
-					if (bidx <= daxis && bidx > 0)
-					{
-						accum[bidx] = accum[bidx] + 1;										// ED: Step 8
-					}
-				}
-			}
-
-			int accum_idx = getIdOfMax(accum);												// ED: Step 10
-			double accum_max = accum[accum_idx];
-
-			if (accum_max > 5) // Check any ellipse with accum > 3
-			{
-				int b = accum_idx + axis_min - 1; //subtract one to count from zero
-
-				if (b / a > ba_min) // Require a minimum aspect ratio
-				{
-					//Draw ellipse and compare to object
-					Int32ArrayType::Pointer coords;
-
-					PlotEllipsev2(round(x0), round(y0), round(a), round(b), alpha, coords);
-
-					// create I_check as a 2D array and assign all values to zero
-					QVector<size_t> I_check_dims(dobj_x);
-					I_check_dims.push_back(dobj_y);
-					
-					for (int i = 0; i < dobj_x; i++)
-					{
-						I_check_dims[i] = dobj_y;
-					}
-					Int32ArrayType::Pointer I_check = Int32ArrayType::CreateArray(dobj_x, I_check_dims, "I check");
-					for (int i = 0; i < dobj_x; i++)
-					{
-						for (int j = 0; j < dobj_y; j++)
-						{
-							I_check->setComponent(dobj_x, dobj_y, 0);
-						}
-					}
-
-
-					for (int k = 0; k < coords->getNumberOfComponents(); k++)
-					{
-						if (coords->getComponent(k, 0) > 0 && coords->getComponent(k, 0) <= dobj_x &&
-							coords->getComponent(k, 1) > 0 && coords->getComponent(k, 1) <= dobj_y)
-						{
-							I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1), 1);
-
-							if (coords->getComponent(k, 0) + 1 <= dobj_x)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1), 1);
-							}
-							if (coords->getComponent(k, 0) - 1 > 0)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1), 1);
-							}
-							if (coords->getComponent(k, 1) + 1 <= dobj_y)
-							{
-								I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1) + 1, 1);
-							}
-							if (coords->getComponent(k, 1) - 1 > 0)
-							{
-								I_check->setComponent(coords->getComponent(k, 0), coords->getComponent(k, 1) - 1, 1);
-							}
-							if (coords->getComponent(k, 0) + 1 <= dobj_x && coords->getComponent(k, 1) + 1 <= dobj_y)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1) + 1, 1);
-							}
-							if (coords->getComponent(k, 0) - 1 > 0 && coords->getComponent(k, 1) + 1 <= dobj_y)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1) + 1, 1);
-							}
-							if (coords->getComponent(k, 0) + 1 <= dobj_x && coords->getComponent(k, 1) - 1 > 0)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) + 1, coords->getComponent(k, 1) - 1, 1);
-							}
-							if (coords->getComponent(k, 0) - 1 > 0 && coords->getComponent(k, 1) - 1 > 0)
-							{
-								I_check->setComponent(coords->getComponent(k, 0) - 1, coords->getComponent(k, 1) - 1, 1);
-							}
-						}
-					}
-
-					Int32ArrayType::Pointer combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
-					std::vector<int> overlap = findNonZeroIndices(combinedMatrix);
-
-					// Estimate perimeter length using Ramanujan'a approximation.
-					double perim = M_PI * (3 * (a + b) - sqrt((3 * a + b)*(a + 3 * b)));
-					// Calculate pixel tolerance based on
-					// the calculated perimeter
-					int tol_pix = round(perim * tol_ellipse);
-
-					if (overlap.size() > tol_pix)
-					{
-						// Accept point as a new candidate
-						cenx_can->setComponent(can_num, 0, round(x0)); //x - coordinate of ellipse
-						ceny_can->setComponent(can_num, 0, round(y0)); //y - coordinate of ellipse
-						maj_can->setComponent(can_num, 0, round(a)); //major semi - axis
-						min_can->setComponent(can_num, 0, round(b)); //minor semi - axis
-						rot_can->setComponent(can_num, 0, alpha); //Counter clockwise rotation from x - axis
-						accum_can->setComponent(can_num, 0, accum_max); //Accumulation matrix
-
-						can_num = can_num + 1;
-					}
-				}
-			}
-		}
-
-		delete[] accum;
-	}
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  // helper method - grabs index from matrix size
+  size_t sub2ind(QVector<size_t> tDims, size_t row, size_t col) const
+  {
+    return row * tDims[0] + col;
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  QPair<size_t,size_t> plotlineEdgeInter(int x0, int y0, int x1, int y1, DoubleArrayType::Pointer binImage, QVector<size_t> imageDims) const
+  {
+    QPair<size_t,size_t> edge;
+
+    // Store Initial Point
+    size_t xi = x0;
+    size_t yi = y0;
+
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+
+    int sx, sy;
+
+    if (x0 < x1)
+      sx = 1;
+    else
+      sx = -1;
+
+    if (y0 < y1)
+      sy = 1;
+    else
+      sy = -1;
+
+    int err = dx - dy;
+    int e2;
+
+    if (err == 0)
+    {
+      edge.first = 0;
+      edge.second = 0;
+      return edge;
+    }
+
+    //Search forward
+    while (true)
+    {
+      if (binImage->getValue(sub2ind(imageDims, x0, y0)) == 0)
+      {
+        if (x0 == x1 && y0 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 == x1 && y0 + 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 + 1 == x1 && y0 + 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 + 1 == x1 && y0 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 + 1 == x1 && y0 - 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 == x1 && y0 - 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 - 1 == x1 && y0 - 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 - 1 == x1 && y0 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else if (x0 - 1 == x1 && y0 + 1 == y1)
+        {
+          edge.first = sub2ind(imageDims, x1, y1);
+          break;
+        }
+        else
+        {
+          edge.first = 0;
+          edge.second = 0;
+          return edge;
+        }
+      }
+
+
+
+      e2 = 2 * err;
+
+      if (e2 > -dy)
+      {
+        err -= dy;
+        x0 += sx;
+      }
+
+      if (e2 < dx)
+      {
+        err += dx;
+        y0 += sy;
+      }
+    }
+
+    // Reverse direction!
+    x0=xi;
+    y0=yi;
+
+    if (x0 > x1)
+      sx = 1;
+    else
+      sx = -1;
+
+    if (y0 > y1)
+      sy = 1;
+    else
+      sy = -1;
+
+    err = dx - dy;
+
+    while (true)
+    {
+      if (binImage->getComponent(sub2ind(imageDims, x0, y0), 0) == 0)
+      {
+        edge.second = sub2ind(imageDims, x0, y0);
+        break;
+      }
+
+      e2 = 2 * err;
+
+      if (e2 > -dy)
+      {
+        err -= dy;
+        x0 += sx;
+      }
+
+      if (e2 < dx)
+      {
+        err += dx;
+        y0 += sy;
+      }
+    }
+
+    return edge;
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  int getIdOfMax(SizeTArrayType::Pointer array) const
+  {
+    if (array.get() == nullptr)
+      return -1;
+
+    int arrayLength = array->getNumberOfTuples() * array->getNumberOfComponents();
+
+    if (arrayLength <= 0)
+      return -1;
+
+    double maxId = -1;
+    double maxValue = std::numeric_limits<size_t>::min();
+
+    for (int i = 0; i < arrayLength; i++)
+    {
+      size_t value = array->getValue(i);
+      if (value > maxValue)
+      {
+        maxValue = value;
+        maxId = i;
+      }
+    }
+
+    return maxId;
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  template <typename T>
+  SizeTArrayType::Pointer findNonZeroIndices(typename DataArray<T>::Pointer array, QVector<size_t> tDims) const
+  {
+    int size = array->getNumberOfTuples();
+    size_t xDim = tDims[0];
+    size_t yDim = tDims[1];
+    typename DataArray<size_t>::Pointer indices = DataArray<size_t>::CreateArray(size, QVector<size_t>(1, 2), "Non-Zero Indices");
+
+    if (array.get() == nullptr)
+      return indices;
+
+    size_t count = 0;
+    for (size_t x = 0; x < xDim; x++)
+    {
+      for (size_t y = 0; y < yDim; y++)
+      {
+        size_t index = (xDim * y) + x;
+        T value = array->getValue(index);
+        if (value != 0)
+        {
+          indices->setComponent(count, 0, x);
+          indices->setComponent(count, 1, y);
+          count++;
+        }
+      }
+    }
+
+    indices->resize(count);
+    return indices;
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  SizeTArrayType::Pointer bitwiseMatrixCombination(SizeTArrayType::Pointer matrix1, Int8ArrayType::Pointer matrix2) const
+  {
+    SizeTArrayType::Pointer result;
+
+    if (matrix1->getNumberOfTuples() != matrix2->getNumberOfTuples() ||
+        matrix1->getNumberOfComponents() != matrix2->getNumberOfComponents())
+    {
+      result = nullptr;
+    }
+    else
+    {
+      result = SizeTArrayType::CreateArray(matrix1->getNumberOfTuples(), matrix1->getComponentDimensions(), "Bitwise Matrix Combination");
+
+      for (int y = 0; y < matrix1->getNumberOfTuples(); y++)
+      {
+        for (int x = 0; x < matrix1->getNumberOfComponents(); x++)
+        {
+          result->setComponent(y, x, matrix1->getComponent(y, x) & matrix2->getComponent(y, x));
+        }
+      }
+    }
+
+    return result;
+  }
+
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  void detectEllipse(SizeTArrayType::Pointer obj_edge_pair_a1, SizeTArrayType::Pointer obj_edge_pair_b1, size_t index, QVector<size_t> obj_tDims,
+                     Int8ArrayType::Pointer obj_mask_edge, size_t& can_num, SizeTArrayType::Pointer cenx_can, SizeTArrayType::Pointer ceny_can, SizeTArrayType::Pointer maj_can, SizeTArrayType::Pointer min_can, DoubleArrayType::Pointer rot_can, SizeTArrayType::Pointer accum_can) const
+  {
+    const int daxis = m_Axis_Max - m_Axis_Min;
+    int axis_min_sq = m_Axis_Min * m_Axis_Min;
+
+    double dobj_x = obj_tDims[0];
+    double dobj_y = obj_tDims[1];
+
+    double x1 = obj_edge_pair_a1->getComponent(index, 1);
+    double y1 = obj_edge_pair_a1->getComponent(index, 0);
+
+    double x2 = obj_edge_pair_b1->getComponent(index, 1);
+    double y2 = obj_edge_pair_b1->getComponent(index, 0);
+
+    double x0 = (x1 + x2) / 2;
+    double y0 = (y1 + y2) / 2;
+    double a = sqrt(std::pow((x2 - x1), 2) + std::pow((y2 - y1), 2)) / 2;          // Equation 3
+    double alpha = atan2(y2 - y1, x2 - x1);                      // Equation 4
+
+    SizeTArrayType::Pointer accum = SizeTArrayType::CreateArray(daxis, QVector<size_t>(1, 1), "Accumulator");
+    accum->initializeWithZeros();
+
+    if (a >= m_Axis_Min && a <= m_Axis_Max)												// ED: Step 4
+    {
+      for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
+      {
+
+        double x3 = obj_edge_pair_a1->getComponent(k, 1);
+        double y3 = obj_edge_pair_a1->getComponent(k, 0);
+
+        double dsq = std::pow((x3 - x0), 2) + std::pow((y3 - y0), 2);
+        double asq = a * a;
+
+        if (dsq > axis_min_sq && dsq < asq)										// ED: Step 6
+        {
+          double d = sqrt(dsq);
+          double fsq = std::pow((x3 - x2), 2) + std::pow((y3 - y2), 2);
+
+          double costau = (asq + dsq - fsq) / (2 * a*d);			// Equation 6
+
+          double costau_sq = costau * costau;
+          double sintau_sq = 1 - costau_sq;
+
+          double bsq = (asq * dsq * sintau_sq) / (asq - dsq * costau_sq);     // Equation 5
+
+          double b = sqrt(bsq);
+
+          //Add one to count from one
+          int bidx = static_cast<int>(std::round(b) - m_Axis_Min + 1);									// ED: Step 7
+
+          if (bidx <= daxis && bidx > 0)
+          {
+            size_t value = accum->getValue(bidx);
+            accum->setValue(bidx, value + 1);										// ED: Step 8
+          }
+        }
+      }
+
+      int accum_idx = getIdOfMax(accum);												// ED: Step 10
+      double accum_max = accum->getValue(accum_idx);
+
+      if (accum_max > 5) // Check any ellipse with accum > 3
+      {
+        double b = accum_idx + m_Axis_Min - 1; //subtract one to count from zero
+
+        if (b / a > m_Ba_Min) // Require a minimum aspect ratio
+        {
+          //Draw ellipse and compare to object
+          SizeTArrayType::Pointer ellipseCoords = plotEllipsev2(std::round(x0), std::round(y0), std::round(a), std::round(b), alpha);
+
+          // create I_check as a 2D array and assign all values to zero
+          QVector<size_t> I_check_dims(dobj_x);
+          I_check_dims.push_back(dobj_y);
+
+          for (int i = 0; i < dobj_x; i++)
+          {
+            I_check_dims[i] = dobj_y;
+          }
+          SizeTArrayType::Pointer I_check = SizeTArrayType::CreateArray(dobj_x, I_check_dims, "I check");
+          for (int i = 0; i < dobj_x; i++)
+          {
+            for (int j = 0; j < dobj_y; j++)
+            {
+              I_check->setComponent(dobj_x, dobj_y, 0);
+            }
+          }
+
+
+          for (int k = 0; k < ellipseCoords->getNumberOfComponents(); k++)
+          {
+            size_t ellipse_x = ellipseCoords->getComponent(k, 0);
+            size_t ellipse_y = ellipseCoords->getComponent(k, 1);
+
+            if (ellipse_x > 0 && ellipse_x <= dobj_x && ellipse_y > 0 && ellipse_y <= dobj_y)
+            {
+              I_check->setComponent(ellipse_x, ellipse_y, 1);
+
+              if (ellipse_x + 1 <= dobj_x)
+              {
+                I_check->setComponent(ellipse_x + 1, ellipse_y, 1);
+              }
+              if (ellipse_x - 1 > 0)
+              {
+                I_check->setComponent(ellipse_x - 1, ellipse_y, 1);
+              }
+              if (ellipse_y + 1 <= dobj_y)
+              {
+                I_check->setComponent(ellipse_x, ellipse_y + 1, 1);
+              }
+              if (ellipse_y - 1 > 0)
+              {
+                I_check->setComponent(ellipse_x, ellipse_y - 1, 1);
+              }
+              if (ellipse_x + 1 <= dobj_x && ellipse_y + 1 <= dobj_y)
+              {
+                I_check->setComponent(ellipse_x + 1, ellipse_y + 1, 1);
+              }
+              if (ellipse_x - 1 > 0 && ellipse_y + 1 <= dobj_y)
+              {
+                I_check->setComponent(ellipse_x - 1, ellipse_y + 1, 1);
+              }
+              if (ellipse_x + 1 <= dobj_x && ellipse_y - 1 > 0)
+              {
+                I_check->setComponent(ellipse_x + 1, ellipse_y - 1, 1);
+              }
+              if (ellipse_x - 1 > 0 && ellipse_y - 1 > 0)
+              {
+                I_check->setComponent(ellipse_x - 1, ellipse_y - 1, 1);
+              }
+            }
+          }
+
+          SizeTArrayType::Pointer combinedMatrix = bitwiseMatrixCombination(I_check, obj_mask_edge);
+          SizeTArrayType::Pointer overlap = findNonZeroIndices<size_t>(combinedMatrix, I_check_dims);
+
+          // Estimate perimeter length using Ramanujan'a approximation.
+          double perim = M_PI * (3 * (a + b) - sqrt((3 * a + b)*(a + 3 * b)));
+          // Calculate pixel tolerance based on
+          // the calculated perimeter
+          double tol_pix = std::round(perim * m_TolEllipse);
+
+          if (overlap->getNumberOfTuples() > tol_pix)
+          {
+            // Accept point as a new candidate
+            cenx_can->setComponent(can_num, 0, std::round(x0)); //x - coordinate of ellipse
+            ceny_can->setComponent(can_num, 0, std::round(y0)); //y - coordinate of ellipse
+            maj_can->setComponent(can_num, 0, std::round(a)); //major semi - axis
+            min_can->setComponent(can_num, 0, std::round(b)); //minor semi - axis
+            rot_can->setComponent(can_num, 0, alpha); //Counter clockwise rotation from x - axis
+            accum_can->setComponent(can_num, 0, accum_max); //Accumulation matrix
+
+            can_num = can_num + 1;
+          }
+        }
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  //
+  // -----------------------------------------------------------------------------
+  SizeTArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta) const
+  {
+    // xc, yc = center of ellipse
+    // p, q = length of semi-major and semi-minor axes, respectively
+    // theta = angle of counterclockwise rotation of major axis from x-axis in radians
+
+    //    if(isreal(xc) == 0 || isreal(yc) == 0 || isreal(p) == 0 || isreal(q) == 0 || isreal(theta) == 0)
+    //    {
+    //      display('Error: Input must be real valued!');
+    //      x_coord = NaN;
+    //      y_coord = NaN;
+    //      count = NaN;
+    //      return;
+    //    }
+
+    // theta must statisfy: -M_PI/2 < theta <= M_PI/2 (can be rotated due to symmetry)
+    while(theta > M_PI/2)
+    {
+      theta = theta - M_PI;
+    }
+    while(theta <= -M_PI/2)
+    {
+      theta = theta + M_PI;
+    }
+
+    // if(theta >= 0) %(xa,xb) is in 1st quadrant and (xb,yb) is in 2nd quadrant
+    // else (xa,xb) is in 4th quadrant and (xb,yb) is in 1nd quadrant
+    double xa = p*cos(theta);
+    double ya = p*sin(theta);
+    double xb = -q*sin(theta);
+    double yb = q*cos(theta);
+
+    double xa_sq = xa * xa;
+    double ya_sq = ya * ya;
+    double xb_sq = xb * xb;
+    double yb_sq = yb * yb;
+
+    double xbyb_sqsq = std::pow((xb_sq + yb_sq), 2);
+    double xaya_sqsq = std::pow((xa_sq + ya_sq), 2);
+
+    // (xa,ya) and (xb,yb) are the points on the ellipse where the major and minor
+    // axis intersect with the ellipse boundary
+
+    double a = (xa_sq * xbyb_sqsq) + (xb_sq * xaya_sqsq);
+    double b = (xa * ya * xbyb_sqsq) + (xb * yb * xaya_sqsq);
+    double c = (ya_sq * xbyb_sqsq) + (yb_sq * xaya_sqsq);
+    double d = xaya_sqsq * xbyb_sqsq;
+
+    // a,b,c,d are the parameters of an ellipse centered at the origin such that
+    // the ellipse is described by the eqution:
+    //   A*x^2 + 2*B*x*y + C*y^2 = D
+
+    //Initialize Values
+    double y = -ya;
+    double x = -xa;
+    double dy = -( (a * x) + (b * y) );
+    double dx = (b * x) + (c * y);
+
+    // Round values to nearest whole integer
+    a=std::round(a);
+    b=std::round(b);
+    c=std::round(c);
+    d=std::round(d);
+    x=std::round(x);
+    y=std::round(y);
+    dx=std::round(dx);
+    dy=std::round(dy);
+
+    // estimate number of points on ellipse for array pre-allocation using arc length
+
+    // Estimate perimeter using approximate formula
+    // (Note this is a bad approximation if the eccentricity is high)
+    size_t perim = static_cast<size_t>(std::ceil( (M_PI * sqrt( 2 * (p*p + q*q) - std::pow((p-q), 2) / 2)) ));
+    // Preallocate array using estimated perimeter
+    SizeTArrayType::Pointer ellipseCoords = SizeTArrayType::CreateArray(perim, QVector<size_t>(1, 2), "Ellipse Coordinates");
+    size_t count = 1;
+
+    if( x <= 0 && y <= 0 ) // (-xa,-ya) is in the third quadrant or on the x axis
+    {
+      if( dx == 0 || std::abs(dy/dx) > 1 ) // 1. Slope at (-xa,-ya) is larger than 1 in magnitude. Five sub-arcs are drawn.
+      {
+        /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is
+              infinite. For all points between, the ellipse has slope larger
+              than 1 in magnitude, so y is always incremented at each step. */
+
+        while (dx < 0) // loop until point with infinite slope occurs
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            x--;
+            dy = dy + a;
+            dx = dx - b;
+          }
+        }
+
+        /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is 1. For
+              all points between, the ellipse has slope larger than 1 in
+              magnitude, so y is always incremented at each step. */
+        while (dy > dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+          double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
+          if(sigma >= 0)
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+
+        /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is 0. For
+              all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always incremented at each step. */
+        while (dy > 0)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            y++;
+            dy = dy - b;
+            dx = dx + c;
+          }
+        }
+
+        /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is -1. For
+              all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always incremented at each step. */
+        while (std::abs(dy) < dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+          if(sigma >= 0)
+          {
+            y--;
+            dy = dy + b;
+            dx = dx - c;
+          }
+        }
+
+        /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
+              ellipse has slope larger than 1 in magnitude, so y is always
+              decremented at each step. */
+        while (y > ya)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y--;
+          dy = dy + b;
+          dx = dx - c;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+      }
+      else // 2. Slope at (-xa,-ya) is smaller than equal to 1 in magnitude. Five subarcs are drawn (i.e., abs(dy/dx) <= 1 ).
+      {
+        /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is -1. For
+              all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always decremented at each step.
+            while ( dy < abs(dx) ) % loop until point with infinite slope occurs */
+
+        //Store pixel values
+        STORE_PIXEL_VALUES(ellipseCoords, count);
+
+        x++;
+        dy = dy + a;
+        dx = dx - b;
+        double sigma = a*x*x+2*b*x*(y+1)+c*(y+1)*(y+1)-d;
+        if(sigma >= 0)
+        {
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+        }
+
+        /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is infinite. For
+              all points between, the ellipse has slope larger than 1 in
+              magnitude, so y is always incremented at each step. */
+        while (dx < 0)
+        {
+
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            x--;
+            dy = dy + a;
+            dx = dx - b;
+          }
+        }
+
+        /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is 1. For
+            % all points between, the ellipse has slope larger than 1 in
+            % magnitude, so y is always incremented at each step. */
+        while (dy > dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+          double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
+          if( sigma >= 0 )
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+
+        /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is
+              zero. For all points between, the ellipse has slope less
+              than 1 in magnitude, so x is always incremented at each step. */
+
+        while (dy > 0) // loop until point with infinite slope occurs
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            y++;
+            dy = dy - b;
+            dx = dx + c;
+          }
+        }
+
+        /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
+              ellipse has slope less than 1 in magnitude, so x is always
+              incremented at each step. */
+
+        while (x < xa)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+          if(sigma >= 0)
+          {
+            y--;
+            dy = dy + b;
+            dx = dx - c;
+          }
+        }
+      }
+    }
+    else // (-xa,-xb) is in the second quadrant
+    {
+      if ( std::abs(dy/dx) >= 1 ) // 1. Slope at (-xa,-ya) is greater than or equal to 1 in magnitude. Five subarcs are drawn.
+      {
+        /* (a) Arc from (-xa,-ya) to a point (x0, y0) whose slope is 1.
+              For all points between, the ellipse has slope larger than 1 in
+              magnitude, so y is incremented at each step. */
+        while (dy > dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+          double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
+          if(sigma >= 0)
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+
+        /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is
+              zero. For all points between, the ellipse has slope less
+              than 1 in magnitude, so x is always incremented. */
+        while (dy > 0)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            y++;
+            dy = dy - b;
+            dx = dx + c;
+          }
+        }
+
+        /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is -1.
+              For all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always incremented at each step. */
+        while (std::abs(dy) < dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+          if(sigma >= 0)
+          {
+            y--;
+            dy = dy + b;
+            dx = dx - c;
+          }
+        }
+
+        /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is infinity.
+            % For all points between, the ellipse has slope greater than 1 in
+            % magnitude, so y is always decremented at each step. */
+        while (dx > 0)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y--;
+          dy = dy + b;
+          dx = dx - c;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+
+        /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
+            % ellipse has slope greater than 1 in magnitude, so y is always
+            % decremented at each step. */
+        while (y > ya)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y--;
+          dy = dy + b;
+          dx = dx - c;
+          double sigma = a*(x-1)*(x-1)+2*b*(x-1)*y+c*y*y-d;
+          if(sigma >= 0)
+          {
+            x--;
+            dy = dy + a;
+            dx = dx - b;
+          }
+        }
+      }
+
+      else // 2. Slop at (-xa,-ya) is smaller than 1 in magnitude (i.e., dy/dx < 0)
+      {
+        /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is 0.
+              For all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always incremented at each step. */
+        while (dy > 0)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            y++;
+            dy = dy - b;
+            dx = dx + c;
+          }
+        }
+
+        /* (b) Arc from (x0,y0) to a point (x1, y1) whose slope is -1.
+              For all points between, the ellipse has slope less than 1 in
+              magnitude, so x is always decremented. */
+        while (std::abs(dy) < dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x++;
+          dy = dy - a;
+          dx = dx + b;
+          double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+          if(sigma >= 0)
+          {
+            y--;
+            dy = dy + b;
+            dx = dx - c;
+          }
+        }
+
+        /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is
+              infinite. For all points between, the ellipse has slope larger
+              than 1, so y is always incremented. */
+        while (dx > 0)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y--;
+          dy = dy + b;
+          dx = dx - c;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            x++;
+            dy = dy - a;
+            dx = dx + b;
+          }
+        }
+
+        /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is 1.
+              For all points between, the ellipse has slope larger than 1 in
+              magnitude, so y is always decremented at each step. */
+        while (dy < dx)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          y--;
+          dy = dy + b;
+          dx = dx - c;
+          double sigma = a*(x-1)*(x-1)+2*b*(x-1)*y+c*y*y-d;
+          if(sigma >= 0)
+          {
+            x--;
+            dy = dy + a;
+            dx = dx - b;
+          }
+        }
+
+        /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
+            % ellipse has slope less than 1 in magnitude, so x is always
+            % incremented at each step. */
+        while (x > xa)
+        {
+          //Store pixel values
+          STORE_PIXEL_VALUES(ellipseCoords, count);
+
+          x--;
+          dy = dy + a;
+          dx = dx - b;
+          double sigma = a*x*x+2*b*x*y+c*y*y-d;
+          if(sigma < 0)
+          {
+            y--;
+            dy = dy + b;
+            dx = dx - c;
+          }
+        }
+
+      }
+    }
+
+    count--;
+
+    return ellipseCoords;
+  }
 };
 
 double DetectEllipsoids::img_scale_length = 588.0;
@@ -1157,7 +1770,7 @@ void DetectEllipsoids::execute()
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, edgesArray, dims, corners, start, end, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, edgesArray, dims, corners, start, end, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio));
         start = end;
         end = end + numOfTasks;
         if(end >= totalNumOfFeatures)
@@ -1172,7 +1785,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 78, 79, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, edgesArray, dims, corners, 21, 22, totalNumOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio);
       impl();
     }
 
