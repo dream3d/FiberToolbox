@@ -67,9 +67,6 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath FeatureIdsArrayPath READ getFeatureIdsArrayPath WRITE setFeatureIdsArrayPath)
 
-    SIMPL_FILTER_PARAMETER(DataArrayPath, EdgesArrayPath)
-    Q_PROPERTY(DataArrayPath EdgesArrayPath READ getEdgesArrayPath WRITE setEdgesArrayPath)
-
     SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
     Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
 
@@ -92,6 +89,7 @@ class DetectEllipsoids : public AbstractFilter
     Q_PROPERTY(int ImageScaleBarUnits READ getImageScaleBarUnits WRITE setImageScaleBarUnits)
 
     SIMPL_FILTER_PARAMETER(int, FeaturesCompleted)
+    SIMPL_FILTER_PARAMETER(size_t, Ellipse_Count)
 
     /**
      * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class
