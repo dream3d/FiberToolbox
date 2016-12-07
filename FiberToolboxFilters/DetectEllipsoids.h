@@ -38,6 +38,8 @@
 
 #include <complex>
 
+#include <QtCore/QSemaphore>
+
 #include "SIMPLib/SIMPLib.h"
 #include "SIMPLib/Common/AbstractFilter.h"
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
@@ -88,8 +90,25 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(int, ImageScaleBarUnits)
     Q_PROPERTY(int ImageScaleBarUnits READ getImageScaleBarUnits WRITE setImageScaleBarUnits)
 
-    SIMPL_FILTER_PARAMETER(int, FeaturesCompleted)
     SIMPL_FILTER_PARAMETER(size_t, Ellipse_Count)
+
+    /**
+     * @brief getUniqueFeatureId
+     * @return
+     */
+    size_t getUniqueFeatureId();
+
+    /**
+     * @brief getAdditionalEllipsesIndex
+     * @return
+     */
+    size_t getAdditionalEllipsesIndex();
+
+    /**
+     * @brief notifyFeatureCompleted
+     * @return
+     */
+    void notifyFeatureCompleted();
 
     /**
      * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class
@@ -145,6 +164,18 @@ class DetectEllipsoids : public AbstractFilter
     */
     virtual void preflight();
 
+    /**
+     * @brief plotEllipsev2
+     * @param xc
+     * @param yc
+     * @param p
+     * @param q
+     * @param theta
+     * @param count
+     * @return
+     */
+    DoubleArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t &count);
+
   signals:
     /**
      * @brief updateFilterParameters Emitted when the Filter requests all the latest Filter parameters
@@ -182,7 +213,14 @@ class DetectEllipsoids : public AbstractFilter
     void initialize();
 
   private:
-    static double img_scale_length;
+    static double           m_img_scale_length;
+    size_t                  m_MaxFeatureId;
+    size_t                  m_TotalNumberOfFeatures;
+    size_t                  m_FeaturesCompleted;
+    size_t                  m_AdditionalEllipsesCount;
+    QSemaphore              m_MaxFeatureIdSem;
+    QSemaphore              m_FeaturesCompletedSem;
+    QSemaphore              m_AdditionalEllipsesCountSem;
 
     /**
      * @brief orientationFilter
