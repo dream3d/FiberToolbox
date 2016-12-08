@@ -69,6 +69,9 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath FeatureIdsArrayPath READ getFeatureIdsArrayPath WRITE setFeatureIdsArrayPath)
 
+    SIMPL_FILTER_PARAMETER(DataArrayPath, DetectedEllipsoidsFeatureIdsArrayPath)
+    Q_PROPERTY(DataArrayPath DetectedEllipsoidsFeatureIdsArrayPath READ getDetectedEllipsoidsFeatureIdsArrayPath WRITE setDetectedEllipsoidsFeatureIdsArrayPath)
+
     SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
     Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
 
@@ -175,6 +178,20 @@ class DetectEllipsoids : public AbstractFilter
      * @return
      */
     DoubleArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t &count);
+
+    /**
+     * @brief fillEllipse
+     * @param I
+     * @param I_tDims
+     * @param xc
+     * @param yc
+     * @param p
+     * @param q
+     * @param theta
+     * @param val
+     * @return
+     */
+    Int32ArrayType::Pointer fillEllipse(Int32ArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val);
 
   signals:
     /**

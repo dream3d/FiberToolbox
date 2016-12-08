@@ -54,6 +54,7 @@
 #include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
 #include "SIMPLib/FilterParameters/IntFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
+#include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
 #include "SIMPLib/DataArrays/StringDataArray.hpp"
 
@@ -86,7 +87,6 @@ class DetectEllipsoidsImpl
   UInt32ArrayType::Pointer        m_Corners;
   int32_t                         m_FeatureIdStart;
   int32_t                         m_FeatureIdEnd;
-  size_t                          m_TotalNumOfFeatures;
   DE_ComplexDoubleVector          m_ConvCoords_X;
   DE_ComplexDoubleVector          m_ConvCoords_Y;
   DE_ComplexDoubleVector          m_ConvCoords_Z;
@@ -109,7 +109,7 @@ public:
   // -----------------------------------------------------------------------------
   //
   // -----------------------------------------------------------------------------
-  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, size_t m_TotalNumberOfFeatures, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max,
+  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max,
   float tol_ellipse, float ba_min, DoubleArrayType::Pointer cenx, DoubleArrayType::Pointer ceny, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, DoubleArrayType::Pointer additionalEllipses) :
     m_Filter(filter),
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
@@ -117,7 +117,6 @@ public:
     m_Corners(corners),
     m_FeatureIdStart(featureIdStart),
     m_FeatureIdEnd(featureIdEnd),
-    m_TotalNumOfFeatures(m_TotalNumberOfFeatures),
     m_ConvCoords_X(convCoords_X),
     m_ConvCoords_Y(convCoords_Y),
     m_ConvCoords_Z(convCoords_Z),
@@ -247,6 +246,7 @@ public:
       double min_pix = std::round(M_PI * m_Axis_Min * m_Axis_Min / 2);
       SizeTArrayType::Pointer objPixelsArray = findNonZeroIndices<double>(featureObjArray, image_tDims);
 
+      size_t numberOfDetectedEllipses = 0;
       while (objPixelsArray->getNumberOfTuples() > min_pix)
       {
         // Convolute Gradient of object with filters
@@ -310,8 +310,8 @@ public:
           size_t obj_ext_index = obj_ext_indices[detectedObjIdx];
 
           // Get indices of extrema value
-          size_t obj_ext_y = obj_ext_index % image_xDim;
-          size_t obj_ext_x = ((obj_ext_index / image_xDim) % image_yDim);
+          size_t obj_ext_y = (obj_ext_index % image_xDim) + 1;                  // Convert to 1-based
+          size_t obj_ext_x = (((obj_ext_index / image_xDim) % image_yDim)) + 1; // Convert to 1-based
 
           size_t mask_rad = m_Axis_Max + m_Axis_Min;
 
@@ -328,38 +328,33 @@ public:
           }
 
           int mask_max_x = obj_ext_x + mask_rad;
-          if ( mask_max_x > image_tDims[0])
+          if ( mask_max_x > image_tDims[1])
           {
-            mask_max_x = image_tDims[0];
+            mask_max_x = image_tDims[1];
           }
 
           int mask_max_y = obj_ext_y + mask_rad;
-          if ( mask_max_y > image_tDims[1])
+          if ( mask_max_y > image_tDims[0])
           {
-            mask_max_y = image_tDims[1];
+            mask_max_y = image_tDims[0];
           }
 
-          QVector<size_t> edge_tDims;
-          edge_tDims.push_back(mask_max_x - mask_min_x + 1);
-          edge_tDims.push_back(mask_max_y - mask_min_y + 1);
-
-          DoubleArrayType::Pointer obj_mask = DoubleArrayType::CreateArray(edge_tDims, QVector<size_t>(1, 1), "obj_mask");
+          DoubleArrayType::Pointer obj_mask = DoubleArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "obj_mask");
           obj_mask->initializeWithZeros();
 
-          for (size_t y = mask_min_y; y < mask_max_y; y++)
+          for (size_t y = mask_min_y - 1; y < mask_max_y; y++)
           {
-            for (size_t x = mask_min_x; x < mask_max_x; x++)
+            for (size_t x = mask_min_x - 1; x < mask_max_x; x++)
             {
-              int featureObj_index = image_tDims[0] * y + x;
-              int edge_index = edge_tDims[0] * (y - mask_min_y + 1) + (x - mask_min_x + 1);
-              obj_mask->setValue(edge_index, featureObjArray->getValue(featureObj_index));
+              int index = image_tDims[0] * x + y;
+              obj_mask->setValue(index, featureObjArray->getValue(index));
             }
           }
 
           // Compute the edge array
-          Int8ArrayType::Pointer edgeArray = findEdges<double>(obj_mask, edge_tDims);
+          Int8ArrayType::Pointer edgeArray = findEdges<double>(obj_mask, image_tDims);
 
-          SizeTArrayType::Pointer obj_edges = findNonZeroIndices<int8_t>(edgeArray, edge_tDims);
+          SizeTArrayType::Pointer obj_edges = findNonZeroIndices<int8_t>(edgeArray, image_tDims);
 
           SizeTArrayType::Pointer obj_edge_pair_a = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_a");
           SizeTArrayType::Pointer obj_edge_pair_b = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_b");
@@ -396,7 +391,7 @@ public:
           size_t can_num = 0;
           for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
           {
-            analyzeEdgePair(obj_edge_pair_a1, obj_edge_pair_b1, k, edge_tDims, edgeArray, can_num, cenx_can, ceny_can, maj_can, min_can, rot_can, accum_can);
+            analyzeEdgePair(obj_edge_pair_a1, obj_edge_pair_b1, k, image_tDims, edgeArray, can_num, cenx_can, ceny_can, maj_can, min_can, rot_can, accum_can);
           }
 
           if(can_num > 0) // Assume best match is the ellipse
@@ -409,7 +404,7 @@ public:
             /* If this is another ellipse in the same overall object,
              * create a new feature id and resize our output arrays */
             size_t objId = featureId;
-            if (detectedObjIdx > 0)
+            if (numberOfDetectedEllipses > 0)
             {
               objId = m_Filter->getUniqueFeatureId();
               m_Cenx->resize(objId + 1);
@@ -419,12 +414,12 @@ public:
               m_Rotangle->resize(objId + 1);
 
               int extraEllipsesIndex = m_Filter->getAdditionalEllipsesIndex();
-              m_AdditionalEllipses->setComponent(extraEllipsesIndex, 0, featureId);
-              m_AdditionalEllipses->setComponent(extraEllipsesIndex, 1, objId);
-  //            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 2, featureId);
-  //            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 3, objId);
-  //            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 4, featureId);
-  //            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 5, objId);
+              if (extraEllipsesIndex >= m_AdditionalEllipses->getNumberOfTuples())
+              {
+                m_AdditionalEllipses->resize(extraEllipsesIndex + 1);
+              }
+              m_AdditionalEllipses->setComponent(extraEllipsesIndex, 0, featureId);       // Old Feature Id
+              m_AdditionalEllipses->setComponent(extraEllipsesIndex, 1, objId);           // New Feature Id
             }
 
             // Store ellipse parameters
@@ -454,10 +449,10 @@ public:
 
             /* Remove pixels from object (including additional 1 pixel thick boarder)
              * and reassign remaining pixels to array */
-            DoubleArrayType::Pointer featureObjOnesArray = DoubleArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "featureObjOnesArray");
+            Int32ArrayType::Pointer featureObjOnesArray = Int32ArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "featureObjOnesArray");
             featureObjOnesArray->initializeWithValue(1);
 
-            DoubleArrayType::Pointer I_tmp = fillEllipse(featureObjOnesArray, image_tDims, cenx_val, ceny_val, majaxis_val+1, minaxis_val+1, rotangle_val, 0);
+            Int32ArrayType::Pointer I_tmp = m_Filter->fillEllipse(featureObjOnesArray, image_tDims, cenx_val, ceny_val, majaxis_val+1, minaxis_val+1, rotangle_val, 0);
 
             for (int i = 0; i < I_tmp->getNumberOfTuples(); i++)
             {
@@ -476,6 +471,7 @@ public:
 
             objPixelsArray = findNonZeroIndices<double>(featureObjArray, image_tDims);
 
+            numberOfDetectedEllipses++;
             break;
           }
         }
@@ -484,11 +480,11 @@ public:
         {
           break;
         }
-      }
 
-      if (m_Filter->getCancel())
-      {
-        return;
+        if (m_Filter->getCancel())
+        {
+          return;
+        }
       }
 
       m_Filter->notifyFeatureCompleted();
@@ -1186,134 +1182,6 @@ public:
       }
     }
   }
-
-  // -----------------------------------------------------------------------------
-  //
-  // -----------------------------------------------------------------------------
-  DoubleArrayType::Pointer fillEllipse(DoubleArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val) const
-  {
-    /* if(theta >= 0) %(xa,xb) is in 1st quadrant and (xb,yb) is in 2nd quadrant
-     else (xa,xb) is in 4th quadrant and (xb,yb) is in 1nd quadrant */
-    double xa = p * std::cos(theta);
-    double ya = p * std::sin(theta);
-    double xb = -q * std::sin(theta);
-    double yb = q * std::cos(theta);
-
-    double xa_sq = xa * xa;
-    double ya_sq = ya * ya;
-    double xb_sq = xb * xb;
-    double yb_sq = yb * yb;
-
-    double xbyb_sqsq = std::pow((xb_sq + yb_sq), 2);
-    double xaya_sqsq = std::pow((xa_sq + ya_sq), 2);
-
-    /* (xa,ya) and (xb,yb) are the points on the ellipse where the major and
-     minor axis intersect with the ellipse boundary */
-
-    double a = (xa_sq * xbyb_sqsq) + (xb_sq * xaya_sqsq);
-    double b = (xa * ya * xbyb_sqsq) + (xb * yb * xaya_sqsq);
-    double c = (ya_sq * xbyb_sqsq) + (yb_sq * xaya_sqsq);
-    double d = xaya_sqsq * xbyb_sqsq;
-
-    /* a,b,c,d are the parameters of an ellipse centered at the origin such that
-     the ellipse is described by the equation:
-     A*x^2 + 2*B*x*y + C*y^2 = D */
-
-    int maxStack = 1000; // Initial stack size
-
-    // Artifical stack
-    DoubleArrayType::Pointer stackX = DoubleArrayType::CreateArray(maxStack, QVector<size_t>(1, 1), "stackX");
-    stackX->initializeWithZeros();
-    DoubleArrayType::Pointer stackY = DoubleArrayType::CreateArray(maxStack, QVector<size_t>(1, 1), "stackY");
-    stackY->initializeWithZeros();
-
-    // push back current point to begin search
-    stackX->setValue(0, xc);
-    stackY->setValue(0, yc);
-    int stackSize = 0;
-
-    size_t sizeX = I_tDims[1];
-    size_t sizeY = I_tDims[0];
-
-    if(xc <= 0 || xc > sizeX || yc <= 0 || yc > sizeY)
-    {
-      //Error: Fill ellipse initiated outside of image boundary!
-      return DoubleArrayType::NullPointer();
-    }
-
-    DoubleArrayType::Pointer I_tmp = DoubleArrayType::CreateArray(I_tDims, QVector<size_t>(1, 1), "I_tmp");
-    I_tmp->initializeWithZeros();
-
-    bool copy = I->copyIntoArray(I_tmp);
-    if (copy == false)
-    {
-      //Error: Could not copy array contents into new array!
-      return DoubleArrayType::NullPointer();
-    }
-
-    while(stackSize > -1)
-    {
-      double x = stackX->getValue(stackSize);
-      double y = stackY->getValue(stackSize);
-      stackSize--;
-
-      double xt = x - xc;
-      double yt = y - yc;
-
-      double sigma = a*xt*xt+2*b*xt*yt+c*yt*yt-d;
-
-      size_t index = I_tDims[0] * x + y;
-      if (sigma <= 0 && I_tmp->getValue(index) != val) // fill in pixel
-      {
-        I_tmp->setValue(index, val);
-
-        if(stackSize > maxStack - 5)
-        {
-          // Increase stack size
-          stackX->resize(maxStack+1000);
-          stackX->initializeWithValue(0, maxStack);
-
-          stackY->resize(maxStack+1000);
-          stackY->initializeWithValue(0, maxStack);
-          maxStack = maxStack + 1000;
-        }
-
-        // x + 1
-        if( x + 1 < sizeX )
-        {
-          stackSize++;
-          stackX->setValue(stackSize, x + 1);
-          stackY->setValue(stackSize, y);
-        }
-
-        // x - 1
-        if( x - 1 >= 0 )
-        {
-          stackSize++;
-          stackX->setValue(stackSize, x - 1);
-          stackY->setValue(stackSize, y);
-        }
-
-        // y + 1
-        if( y + 1 < sizeY )
-        {
-          stackSize++;
-          stackX->setValue(stackSize, x);
-          stackY->setValue(stackSize, y + 1);
-        }
-
-        // y - 1
-        if( y - 1 >= 0 )
-        {
-          stackSize++;
-          stackX->setValue(stackSize, x);
-          stackY->setValue(stackSize, y - 1);
-        }
-      }
-    }
-
-    return I_tmp;
-  }
 };
 
 double DetectEllipsoids::m_img_scale_length = 588.0;
@@ -1405,6 +1273,11 @@ void DetectEllipsoids::setupFilterParameters()
     parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Active", ActiveArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
+  {
+    DataArrayCreationFilterParameter::RequirementType req = DataArrayCreationFilterParameter::CreateRequirement(AttributeMatrix::Type::Cell, IGeometry::Type::Image);
+    parameters.push_back(SIMPL_NEW_DA_CREATION_FP("Detected Ellipsoids Feature Ids", DetectedEllipsoidsFeatureIdsArrayPath, FilterParameter::CreatedArray, DetectEllipsoids, req));
+  }
+
   setFilterParameters(parameters);
 }
 
@@ -1417,6 +1290,9 @@ void DetectEllipsoids::dataCheck()
 
   getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType,AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
   getDataContainerArray()->getPrereqArrayFromPath<BoolArrayType,AbstractFilter>(this, m_ActiveArrayPath, QVector<size_t>(1, 1));
+
+  int err = 0;
+  getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, err);
 }
 
 // -----------------------------------------------------------------------------
@@ -1590,7 +1466,7 @@ void DetectEllipsoids::execute()
 
     m_MaxFeatureId = m_TotalNumberOfFeatures;
 
-    DoubleArrayType::Pointer additionalEllipses = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 6), "additionalEllipses"); // Counter clockwise rotation from x-axis
+    DoubleArrayType::Pointer additionalEllipses = DoubleArrayType::CreateArray(15, QVector<size_t>(1, 6), "additionalEllipses"); // Counter clockwise rotation from x-axis
     for (int i=0; i < additionalEllipses->getNumberOfTuples(); i++)
     {
       additionalEllipses->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
@@ -1601,10 +1477,6 @@ void DetectEllipsoids::execute()
       additionalEllipses->setComponent(i, 5, std::numeric_limits<double>::quiet_NaN());
     }
 
-    // ***********
-    getDataContainerArray()->createNonPrereqDataContainer<AbstractFilter>(this, "Test_DC");
-    // ***********
-
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
     tbb::task_scheduler_init init;
     bool doParallel = true;
@@ -1613,13 +1485,13 @@ void DetectEllipsoids::execute()
     {
       tbb::task_group* g = new tbb::task_group;
       int threads = init.default_num_threads();
-      unsigned int numOfTasks = (m_TotalNumberOfFeatures-1) / threads;
+      unsigned int numOfTasks = ((m_TotalNumberOfFeatures) / threads) + 1;
 
       int32_t start = 1;
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses));
         start = end;
         end = end + numOfTasks;
         if(end >= m_TotalNumberOfFeatures)
@@ -1634,9 +1506,42 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses);
       impl();
     }
+
+    qint64 secs = (QDateTime::currentMSecsSinceEpoch() - millis) / 1000;
+    std::cout << "Seconds: " << secs;
+
+    if (getCancel() == true)
+    {
+      return;
+    }
+
+    // Create the new Ellipse Detection Feature Ids array
+    err = 0;
+    AttributeMatrix::Pointer de_FeatureIds_AM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, err);
+    Int32ArrayType::Pointer ellipseDetectionFeatureIds = Int32ArrayType::CreateArray(imageDims, QVector<size_t>(1, 1), m_DetectedEllipsoidsFeatureIdsArrayPath.getDataArrayName());
+    ellipseDetectionFeatureIds->initializeWithZeros();
+
+    for (int featureId = 1; featureId < cenx->getNumberOfTuples(); featureId++)
+    {
+      double cenx_val = cenx->getValue(featureId);
+      double ceny_val = ceny->getValue(featureId);
+      double majaxis_val = majaxis->getValue(featureId);
+      double minaxis_val = minaxis->getValue(featureId);
+      double rotangle_val = rotangle->getValue(featureId);
+
+      double nan = std::numeric_limits<double>::quiet_NaN();
+      if (cenx_val == nan || ceny_val == nan || majaxis_val == nan || minaxis_val == nan || rotangle_val == nan)
+      {
+        continue;
+      }
+
+      ellipseDetectionFeatureIds = fillEllipse(ellipseDetectionFeatureIds, imageDims, cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, featureId);
+    }
+
+    de_FeatureIds_AM->addAttributeArray(ellipseDetectionFeatureIds->getName(), ellipseDetectionFeatureIds);
   }
 
   notifyStatusMessage(getHumanLabel(), "Complete");
@@ -2342,6 +2247,134 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
   count--;
 
   return ellipseCoords;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val)
+{
+  /* if(theta >= 0) %(xa,xb) is in 1st quadrant and (xb,yb) is in 2nd quadrant
+   else (xa,xb) is in 4th quadrant and (xb,yb) is in 1nd quadrant */
+  double xa = p * std::cos(theta);
+  double ya = p * std::sin(theta);
+  double xb = -q * std::sin(theta);
+  double yb = q * std::cos(theta);
+
+  double xa_sq = xa * xa;
+  double ya_sq = ya * ya;
+  double xb_sq = xb * xb;
+  double yb_sq = yb * yb;
+
+  double xbyb_sqsq = std::pow((xb_sq + yb_sq), 2);
+  double xaya_sqsq = std::pow((xa_sq + ya_sq), 2);
+
+  /* (xa,ya) and (xb,yb) are the points on the ellipse where the major and
+   minor axis intersect with the ellipse boundary */
+
+  double a = (xa_sq * xbyb_sqsq) + (xb_sq * xaya_sqsq);
+  double b = (xa * ya * xbyb_sqsq) + (xb * yb * xaya_sqsq);
+  double c = (ya_sq * xbyb_sqsq) + (yb_sq * xaya_sqsq);
+  double d = xaya_sqsq * xbyb_sqsq;
+
+  /* a,b,c,d are the parameters of an ellipse centered at the origin such that
+   the ellipse is described by the equation:
+   A*x^2 + 2*B*x*y + C*y^2 = D */
+
+  int maxStack = 1000; // Initial stack size
+
+  // Artifical stack
+  DoubleArrayType::Pointer stackX = DoubleArrayType::CreateArray(maxStack, QVector<size_t>(1, 1), "stackX");
+  stackX->initializeWithZeros();
+  DoubleArrayType::Pointer stackY = DoubleArrayType::CreateArray(maxStack, QVector<size_t>(1, 1), "stackY");
+  stackY->initializeWithZeros();
+
+  // push back current point to begin search
+  stackX->setValue(0, xc);
+  stackY->setValue(0, yc);
+  int stackSize = 0;
+
+  size_t sizeX = I_tDims[1];
+  size_t sizeY = I_tDims[0];
+
+  if(xc <= 0 || xc > sizeX || yc <= 0 || yc > sizeY)
+  {
+    //Error: Fill ellipse initiated outside of image boundary!
+    return Int32ArrayType::NullPointer();
+  }
+
+  Int32ArrayType::Pointer I_tmp = Int32ArrayType::CreateArray(I_tDims, QVector<size_t>(1, 1), I->getName());
+  I_tmp->initializeWithZeros();
+
+  bool copy = I->copyIntoArray(I_tmp);
+  if (copy == false)
+  {
+    //Error: Could not copy array contents into new array!
+    return Int32ArrayType::NullPointer();
+  }
+
+  while(stackSize >= 0)
+  {
+    double x = stackX->getValue(stackSize);
+    double y = stackY->getValue(stackSize);
+    stackSize--;
+
+    double xt = x - xc;
+    double yt = y - yc;
+
+    double sigma = a*xt*xt+2*b*xt*yt+c*yt*yt-d;
+
+    size_t index = I_tDims[0] * x + y;
+    if (sigma <= 0 && I_tmp->getValue(index) != val) // fill in pixel
+    {
+      I_tmp->setValue(index, val);
+
+      if(stackSize > maxStack - 5)
+      {
+        // Increase stack size
+        stackX->resize(maxStack+1000);
+        stackX->initializeWithValue(0, maxStack);
+
+        stackY->resize(maxStack+1000);
+        stackY->initializeWithValue(0, maxStack);
+        maxStack = maxStack + 1000;
+      }
+
+      // x + 1
+      if( x + 1 < sizeX )
+      {
+        stackSize++;
+        stackX->setValue(stackSize, x + 1);
+        stackY->setValue(stackSize, y);
+      }
+
+      // x - 1
+      if( x - 1 >= 0 )
+      {
+        stackSize++;
+        stackX->setValue(stackSize, x - 1);
+        stackY->setValue(stackSize, y);
+      }
+
+      // y + 1
+      if( y + 1 < sizeY )
+      {
+        stackSize++;
+        stackX->setValue(stackSize, x);
+        stackY->setValue(stackSize, y + 1);
+      }
+
+      // y - 1
+      if( y - 1 >= 0 )
+      {
+        stackSize++;
+        stackX->setValue(stackSize, x);
+        stackY->setValue(stackSize, y - 1);
+      }
+    }
+  }
+
+  return I_tmp;
 }
 
 // -----------------------------------------------------------------------------
