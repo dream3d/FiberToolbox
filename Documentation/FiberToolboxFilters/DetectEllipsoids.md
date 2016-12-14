@@ -5,29 +5,33 @@ Detect Ellipsoids {#detectellipsoids}
 FiberToolbox (FiberToolbox)
 
 ## Description ##
-This **Filter** does the following...
+This **Filter** detects ellipsoids in an existing *FeatureIds* array, and outputs a new FeatureId array that contains all the ellipses that were found.
+
+The input *FeatureIds* array 
 
 ## Parameters ##
 | Name | Type | Description |
 |------|------|------|
-| Parameter Name | Parameter Type | Description of parameter... |
+| MinFiberAxisLength | Integer | The minimum length of the fiber axis |
+| MaxFiberAxisLength | Integer | The maximum length of the fiber axis |
+| HoughTransformThreshold | Double | Threshold for Hough Transform |
+| MinAspectRatio | Double | Minimum Aspect Ratio |
+| ImageScaleBarLength | Integer | Length of the Image Scale Bar |
+| ImageScaleBarUnits | Choice | Units used in calculations |
 
 ## Required Geometry ##
-Required Geometry Type -or- Not Applicable
+Image
 
 ## Required Objects ##
 | Kind | Default Name | Type | Component Dimensions | Description |
 |------|--------------|-------------|---------|-----|
-| **Data Container** | Data Container Name | N/A | N/A | Description of object... |
-| **Attribute Matrix** | Attribute Matrix Name | Element/Feature/Ensemble/etc. | N/A | Description of object... |
-| **Element/Feature/Ensemble/etc. Attribute Array** | AttributeArray Name | int32_t/float/etc. | (1)/(3)/etc. | Description of object... |
+| Cell **Attribute Array** | FeatureIds | int32_t | (1) | The Feature Ids array to analyze for ellipsoids |
+| CellFeature **Attribute Array** | Active | bool | (1) | The Feature Ids that are active in the Feature Ids array |
 
 ## Created Objects ##
 | Kind | Default Name | Type | Component Dimensions | Description |
 |------|--------------|-------------|---------|-----|
-| **Data Container** | Data Container Name | N/A | N/A | Description of object... |
-| **Attribute Matrix** | Attribute Matrix Name | Element/Feature/Ensemble/etc. | N/A | Description of object... |
-| **Element/Feature/Ensemble/etc. Attribute Array** | AttributeArray Name | int32_t/float/etc. | (1)/(3)/etc. | Description of object... |
+| Cell **Attribute Array** | DetectedEllipsoidsFeatureIdsArrayPath | int32_t | (1) | The path to the Feature Ids array that contains detected ellipsoids |
 
 ## License & Copyright ##
 
