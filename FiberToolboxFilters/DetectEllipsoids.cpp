@@ -213,7 +213,7 @@ public:
       obj_tDims.push_back(zDim);
 
       QVector<size_t> cDims(1, 1);
-      DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(image_tDims, cDims, "Feature Object");
+      DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(image_tDims, cDims, "featureObjArray");
       featureObjArray->initializeWithZeros();
 
       for (size_t z = topL_Z; z <= bottomR_Z; z++)
@@ -310,30 +310,30 @@ public:
           size_t obj_ext_index = obj_ext_indices[detectedObjIdx];
 
           // Get indices of extrema value
-          size_t obj_ext_y = (obj_ext_index % image_xDim) + 1;                  // Convert to 1-based
-          size_t obj_ext_x = (((obj_ext_index / image_xDim) % image_yDim)) + 1; // Convert to 1-based
+          size_t obj_ext_y = (obj_ext_index % image_xDim);
+          size_t obj_ext_x = (((obj_ext_index / image_xDim) % image_yDim));
 
           size_t mask_rad = m_Axis_Max + m_Axis_Min;
 
-          int mask_min_x = obj_ext_x - mask_rad;
+          int mask_min_x = obj_ext_x - mask_rad + 1;
           if ( mask_min_x < 1)
           {
             mask_min_x = 1;
           }
 
-          int mask_min_y = obj_ext_y - mask_rad;
+          int mask_min_y = obj_ext_y - mask_rad + 1;
           if ( mask_min_y < 1)
           {
             mask_min_y = 1;
           }
 
-          int mask_max_x = obj_ext_x + mask_rad;
+          int mask_max_x = obj_ext_x + mask_rad + 1;
           if ( mask_max_x > image_tDims[1])
           {
             mask_max_x = image_tDims[1];
           }
 
-          int mask_max_y = obj_ext_y + mask_rad;
+          int mask_max_y = obj_ext_y + mask_rad + 1;
           if ( mask_max_y > image_tDims[0])
           {
             mask_max_y = image_tDims[0];
@@ -1538,7 +1538,21 @@ void DetectEllipsoids::execute()
         continue;
       }
 
-      ellipseDetectionFeatureIds = fillEllipse(ellipseDetectionFeatureIds, imageDims, cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, featureId);
+      //ellipseDetectionFeatureIds = fillEllipse(ellipseDetectionFeatureIds, imageDims, cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, featureId);
+
+      size_t count = 1;
+      ellipseCoords = plotEllipsev2(cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, count);
+      for (int i = 1; i <= count; i++)
+      {
+        int x = static_cast<int>(ellipseCoords->getComponent(i, 1));
+        int y = static_cast<int>(ellipseCoords->getComponent(i, 0));
+
+        if (x >= 0 && y >= 0 && x < xDim && y < yDim)
+        {
+          int index = xDim * y + x;
+          ellipseDetectionFeatureIds->setValue(index, featureId);
+        }
+      }
     }
 
     de_FeatureIds_AM->addAttributeArray(ellipseDetectionFeatureIds->getName(), ellipseDetectionFeatureIds);
@@ -1759,11 +1773,11 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
 //    }
 
   // theta must statisfy: -M_PI/2 < theta <= M_PI/2 (can be rotated due to symmetry)
-  while(theta > M_PI/2)
+  while(theta > M_PI_2)
   {
     theta = theta - M_PI;
   }
-  while(theta <= -M_PI/2)
+  while(theta <= -M_PI_2)
   {
     theta = theta + M_PI;
   }
@@ -1933,13 +1947,13 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
     {
       /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is -1. For
             all points between, the ellipse has slope less than 1 in
-            magnitude, so x is always decremented at each step.
-          while ( dy < abs(dx) ) % loop until point with infinite slope occurs */
-
+            magnitude, so x is always decremented at each step. */
+    while ( dy < std::abs(dx) ) // loop until point with infinite slope occurs
+    {
       //Store pixel values
       STORE_PIXEL_VALUES(ellipseCoords, count);
 
-      x++;
+      x--;
       dy = dy + a;
       dx = dx - b;
       double sigma = a*x*x+2*b*x*(y+1)+c*(y+1)*(y+1)-d;
@@ -1949,6 +1963,7 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
         dy = dy - b;
         dx = dx + c;
       }
+    }
 
       /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is infinite. For
             all points between, the ellipse has slope larger than 1 in
