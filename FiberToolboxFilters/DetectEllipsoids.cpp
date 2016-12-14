@@ -1074,7 +1074,7 @@ public:
           double b = sqrt(bsq);
 
           //Add one to count from one
-          int bidx = static_cast<int>(std::round(b) - m_Axis_Min + 1);
+          int bidx = static_cast<int>(std::round(b) - m_Axis_Min);
 
           if (bidx <= daxis && bidx > 0)
           {
@@ -1089,7 +1089,7 @@ public:
 
       if (accum_max > 5)
       {
-        double b = accum_idx + m_Axis_Min - 1;
+        double b = accum_idx + m_Axis_Min;
 
         if (b / a > m_Ba_Min)
         {
