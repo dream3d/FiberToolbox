@@ -1541,7 +1541,7 @@ void DetectEllipsoids::execute()
       //ellipseDetectionFeatureIds = fillEllipse(ellipseDetectionFeatureIds, imageDims, cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, featureId);
 
       size_t count = 1;
-      ellipseCoords = plotEllipsev2(cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, count);
+      DoubleArrayType::Pointer ellipseCoords = plotEllipsev2(cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, count);
       for (int i = 1; i <= count; i++)
       {
         int x = static_cast<int>(ellipseCoords->getComponent(i, 1));
