@@ -18,7 +18,9 @@ include_directories(${SIMPLProj_BINARY_DIR})
 #------------------------------------------------------------------------------
 # Set any additional include directories here
 
-set(TEST_TEMP_DIR ${${PLUGIN_NAME}Test_BINARY_DIR}/Test/Temp)
+set(TESTFILES_SRC_DIR ${${PLUGIN_NAME}Test_SOURCE_DIR}/TestFiles)
+set(TESTFILES_BINARY_DIR ${${PLUGIN_NAME}Test_BINARY_DIR}/TestFiles)
+set(TEST_TEMP_DIR ${${PLUGIN_NAME}Test_BINARY_DIR}/Temp)
 
 # Make sure the directory is created during CMake time
 file(MAKE_DIRECTORY ${TEST_TEMP_DIR})
@@ -78,3 +80,11 @@ if(MSVC)
   set_source_files_properties(${${PLUGIN_NAME}_BINARY_DIR}/${PLUGIN_NAME}UnitTest.cpp 
                               PROPERTIES COMPILE_FLAGS /bigobj)
 endif()
+
+#-------------------------------------------------------------------------------
+#- This copies all the Prebuilt Pipeline files into the Build directory so the help
+#- works from the Build Tree
+add_custom_target(TestFileCopy ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory ${TESTFILES_SRC_DIR} ${TESTFILES_BINARY_DIR}
+            COMMENT "Copying ${PLUGIN_NAME} Test Files to Build directory...")
+set_target_properties(TestFileCopy PROPERTIES FOLDER ZZ_COPY_FILES)

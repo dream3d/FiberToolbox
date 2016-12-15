@@ -1293,6 +1293,7 @@ void DetectEllipsoids::dataCheck()
 
   int err = 0;
   getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, err);
+  getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType,AbstractFilter,int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
 }
 
 // -----------------------------------------------------------------------------
@@ -1430,8 +1431,6 @@ void DetectEllipsoids::execute()
     QString ss = QObject::tr("0/%2").arg(m_TotalNumberOfFeatures);
     notifyStatusMessage(getMessagePrefix(), getHumanLabel(), ss);
 
-    qint64 millis = QDateTime::currentMSecsSinceEpoch();
-
     /* Initialize output arrays.  Each array is initialized to m_TotalNumberOfFeatures+1 because the output arrays
        will not use the 0 index so that each output array index matches up to a featureId. */
     DoubleArrayType::Pointer cenx = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "cenx"); // x-coordinate of ellipse
@@ -1509,9 +1508,6 @@ void DetectEllipsoids::execute()
       DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses);
       impl();
     }
-
-    qint64 secs = (QDateTime::currentMSecsSinceEpoch() - millis) / 1000;
-    std::cout << "Seconds: " << secs;
 
     if (getCancel() == true)
     {

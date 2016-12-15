@@ -23,8 +23,11 @@ namespace UnitTest
 
   namespace DetectEllipsoidsTest
   {
-    const QString TestFile1("@TEST_TEMP_DIR@/TestFile1.txt");
-    const QString TestFile2("@TEST_TEMP_DIR@/TestFile2.txt");
+    const QString EllipseOutputPath("@TESTFILES_BINARY_DIR@/EllipseOutput.txt");
+    const QString InputSegmentationPath("@TESTFILES_BINARY_DIR@/InputSegmentation.tif");
+    const QString TestPipelinePath("@TESTFILES_BINARY_DIR@/TestPipeline.json");
+    const QString TestOutputDirectory("@TESTFILES_BINARY_DIR@");
+    const QString TestOutputPath("@TESTFILES_BINARY_DIR@/EllipsoidFeatureIds.txt");
   }
 }
 
