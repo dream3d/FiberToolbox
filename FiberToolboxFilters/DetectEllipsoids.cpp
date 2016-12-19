@@ -568,17 +568,12 @@ public:
     double* imageArray = image->getPointer(0);
     int offsetArrayNumOfComps = offsetArray->getNumberOfComponents();
 
-    T accumulator;
+    T accumulator = 0;
     size_t xDim = image_tDims[0], yDim = image_tDims[1], zDim = image_tDims[2];
     int gradNumTuples = image->getNumberOfTuples();
     int reverseKernelCount = reverse_kernel.size();
     for (int i=0; i<gradNumTuples; i++)
     {
-      if (m_Filter->getCancel())
-      {
-        return std::vector<T>();
-      }
-
       int imageCurrentX = (i % xDim);
       int imageCurrentY = ((i / xDim) % yDim);
       int imageCurrentZ = (((i / xDim) / yDim) % zDim);
