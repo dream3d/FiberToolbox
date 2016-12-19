@@ -2,7 +2,7 @@
     "0": {
         "CellAttributeMatrixName": "CellData",
         "DataContainerName": "ImageDataContainer",
-        "FileName": "/Users/joeykleingers/Workspace/DREAM3D_Plugins/FiberToolbox/Test/TestFiles/InputSegmentation.tif",
+        "FileName": "",
         "Filter_Human_Label": "[ITK] Image Reader (KW)",
         "Filter_Name": "ITKImageReader",
         "ImageDataArrayName": "EMMPM_Output"
@@ -86,9 +86,15 @@
             "Data Array Name": "Active",
             "Data Container Name": "ImageDataContainer"
         },
+        "CenterCoordinatesArrayName": "EllipsoidsCenterCoords",
         "DetectedEllipsoidsFeatureIdsArrayPath": {
             "Attribute Matrix Name": "CellData",
             "Data Array Name": "EllipsoidFeatureIds",
+            "Data Container Name": "ImageDataContainer"
+        },
+        "EllipseFeatureAttributeMatrixPath": {
+            "Attribute Matrix Name": "EllipsoidFeatureData",
+            "Data Array Name": "",
             "Data Container Name": "ImageDataContainer"
         },
         "FeatureIdsArrayPath": {
@@ -101,9 +107,12 @@
         "HoughTransformThreshold": 0.5,
         "ImageScaleBarLength": 100,
         "ImageScaleBarUnits": 1,
+        "MajorAxisLengthArrayName": "EllipsoidsMajorAxisLength",
         "MaxFiberAxisLength": 18,
         "MinAspectRatio": 0.40000000596046448,
-        "MinFiberAxisLength": 4
+        "MinFiberAxisLength": 4,
+        "MinorAxisLengthArrayName": "EllipsoidsMinorAxisLength",
+        "RotationalAnglesArrayName": "EllipsoidsRotationalAngles"
     },
     "6": {
         "Delimeter": 4,
@@ -111,7 +120,7 @@
         "Filter_Human_Label": "Write ASCII Data",
         "Filter_Name": "WriteASCIIData",
         "MaxValPerLine": 2584,
-        "OutputPath": "/Users/joeykleingers/Workspace/DREAM3D_Plugins/FiberToolbox/Test/TestFiles",
+        "OutputPath": "",
         "SelectedDataArrayPaths": [
             {
                 "Attribute Matrix Name": "CellData",

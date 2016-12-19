@@ -54,6 +54,8 @@
 #include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
 #include "SIMPLib/FilterParameters/IntFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
+#include "SIMPLib/FilterParameters/StringFilterParameter.h"
+#include "SIMPLib/FilterParameters/AttributeMatrixCreationFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
 #include "SIMPLib/DataArrays/StringDataArray.hpp"
@@ -98,11 +100,11 @@ class DetectEllipsoidsImpl
   double                          m_Axis_Max;
   float                           m_TolEllipse;
   float                           m_Ba_Min;
-  DoubleArrayType::Pointer        m_Cenx;
-  DoubleArrayType::Pointer        m_Ceny;
+  DoubleArrayType::Pointer        m_Center;
   DoubleArrayType::Pointer        m_Majaxis;
   DoubleArrayType::Pointer        m_Minaxis;
   DoubleArrayType::Pointer        m_Rotangle;
+  AttributeMatrix::Pointer        m_EllipseFeatureAM;
   DoubleArrayType::Pointer        m_AdditionalEllipses;
 
 public:
@@ -110,7 +112,7 @@ public:
   //
   // -----------------------------------------------------------------------------
   DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max,
-  float tol_ellipse, float ba_min, DoubleArrayType::Pointer cenx, DoubleArrayType::Pointer ceny, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, DoubleArrayType::Pointer additionalEllipses) :
+  float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM, DoubleArrayType::Pointer additionalEllipses) :
     m_Filter(filter),
     m_CellFeatureIdsPtr(cellFeatureIdsPtr),
     m_CellFeatureIdsDims(cellFeatureIdsDims),
@@ -128,11 +130,11 @@ public:
     m_Axis_Max(axis_max),
     m_TolEllipse(tol_ellipse),
     m_Ba_Min(ba_min),
-    m_Cenx(cenx),
-    m_Ceny(ceny),
+    m_Center(center),
     m_Majaxis(majaxis),
     m_Minaxis(minaxis),
     m_Rotangle(rotangle),
+    m_EllipseFeatureAM(ellipseFeatureAM),
     m_AdditionalEllipses(additionalEllipses)
   {
 
@@ -407,11 +409,7 @@ public:
             if (numberOfDetectedEllipses > 0)
             {
               objId = m_Filter->getUniqueFeatureId();
-              m_Cenx->resize(objId + 1);
-              m_Ceny->resize(objId + 1);
-              m_Majaxis->resize(objId + 1);
-              m_Minaxis->resize(objId + 1);
-              m_Rotangle->resize(objId + 1);
+              m_EllipseFeatureAM->resizeAttributeArrays(QVector<size_t>(1, objId + 1));
 
               int extraEllipsesIndex = m_Filter->getAdditionalEllipsesIndex();
               if (extraEllipsesIndex >= m_AdditionalEllipses->getNumberOfTuples())
@@ -441,8 +439,8 @@ public:
               }
             }
 
-            m_Cenx->setValue(objId, cenx_val);
-            m_Ceny->setValue(objId, ceny_val);
+            m_Center->setComponent(objId, 0, cenx_val);
+            m_Center->setComponent(objId, 1, ceny_val);
             m_Majaxis->setValue(objId, majaxis_val);
             m_Minaxis->setValue(objId, minaxis_val);
             m_Rotangle->setValue(objId, rotangle_val);
@@ -463,8 +461,9 @@ public:
             // Translate center of ellipse into real space
             size_t obj_x_min = topL_Y;
             size_t obj_y_min = topL_X;
-            m_Cenx->setValue(objId, m_Cenx->getValue(objId) + obj_x_min);
-            m_Ceny->setValue(objId, m_Ceny->getValue(objId) + obj_y_min);
+
+            m_Center->setComponent(objId, 0, m_Center->getComponent(objId, 0) + obj_x_min);
+            m_Center->setComponent(objId, 1, m_Center->getComponent(objId, 1) + obj_y_min);
 
             // Clean Accumulator
             accum_can->initializeWithZeros();
@@ -1191,6 +1190,11 @@ double DetectEllipsoids::m_img_scale_length = 588.0;
 // -----------------------------------------------------------------------------
 DetectEllipsoids::DetectEllipsoids() :
   AbstractFilter(),
+  m_EllipseFeatureAttributeMatrixPath("", "", ""),
+  m_CenterCoordinatesArrayName("EllipsoidsCenterCoords"),
+  m_MajorAxisLengthArrayName("EllipsoidsMajorAxisLength"),
+  m_MinorAxisLengthArrayName("EllipsoidsMinorAxisLength"),
+  m_RotationalAnglesArrayName("EllipsoidsRotationalAngles"),
   m_MinFiberAxisLength(4),
   m_MaxFiberAxisLength(18),
   m_HoughTransformThreshold(0.5f),
@@ -1274,6 +1278,28 @@ void DetectEllipsoids::setupFilterParameters()
   }
 
   {
+    AttributeMatrixCreationFilterParameter::RequirementType req;
+    req.dcGeometryTypes = IGeometry::Types(1, IGeometry::Type::Image);
+    parameters.push_back(SIMPL_NEW_AM_CREATION_FP("Ellipsoid Feature Attribute Matrix", EllipseFeatureAttributeMatrixPath, FilterParameter::CreatedArray, DetectEllipsoids, req));
+  }
+
+  {
+    parameters.push_back(SIMPL_NEW_STRING_FP("Ellipsoid Center Coordinates", CenterCoordinatesArrayName, FilterParameter::CreatedArray, DetectEllipsoids));
+  }
+
+  {
+    parameters.push_back(SIMPL_NEW_STRING_FP("Ellipsoid Major Axis Lengths", MajorAxisLengthArrayName, FilterParameter::CreatedArray, DetectEllipsoids));
+  }
+
+  {
+    parameters.push_back(SIMPL_NEW_STRING_FP("Ellipsoid Minor Axis Lengths", MinorAxisLengthArrayName, FilterParameter::CreatedArray, DetectEllipsoids));
+  }
+
+  {
+    parameters.push_back(SIMPL_NEW_STRING_FP("Ellipsoid Rotational Angles", RotationalAnglesArrayName, FilterParameter::CreatedArray, DetectEllipsoids));
+  }
+
+  {
     DataArrayCreationFilterParameter::RequirementType req = DataArrayCreationFilterParameter::CreateRequirement(AttributeMatrix::Type::Cell, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_DA_CREATION_FP("Detected Ellipsoids Feature Ids", DetectedEllipsoidsFeatureIdsArrayPath, FilterParameter::CreatedArray, DetectEllipsoids, req));
   }
@@ -1291,9 +1317,32 @@ void DetectEllipsoids::dataCheck()
   getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType,AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
   getDataContainerArray()->getPrereqArrayFromPath<BoolArrayType,AbstractFilter>(this, m_ActiveArrayPath, QVector<size_t>(1, 1));
 
+    m_DetectedEllipsoidsFeatureIdsPtr = getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType,AbstractFilter,int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
+
   int err = 0;
-  getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, err);
-  getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType,AbstractFilter,int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
+  AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_ActiveArrayPath, err);
+  if (getErrorCondition() < 0) { return; }
+
+  m_TotalNumberOfFeatures = activeAM->getNumberOfTuples();
+
+  DataContainer::Pointer dc = getDataContainerArray()->getPrereqDataContainer<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
+  if (getErrorCondition() < 0) { return; }
+
+  m_EllipseFeatureAttributeMatrixPtr = dc->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(), QVector<size_t>(1, m_TotalNumberOfFeatures+1), AttributeMatrix::Type::CellFeature);
+
+  DataArrayPath tmp = m_EllipseFeatureAttributeMatrixPath;
+  tmp.setDataArrayName(m_CenterCoordinatesArrayName);
+  m_CenterCoordinatesPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 2));
+
+  tmp.setDataArrayName(m_MajorAxisLengthArrayName);
+  m_MajorAxisLengthArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
+
+  tmp.setDataArrayName(m_MinorAxisLengthArrayName);
+  m_MinorAxisLengthArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
+
+  tmp.setDataArrayName(m_RotationalAnglesArrayName);
+  m_RotationalAnglesArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
+
 }
 
 // -----------------------------------------------------------------------------
@@ -1427,45 +1476,12 @@ void DetectEllipsoids::execute()
     smooth_tDims.push_back(1);
     Int32ArrayType::Pointer smoothOffsetArray = createOffsetArray(smooth_tDims);
 
-    m_TotalNumberOfFeatures = activeAM->getNumberOfTuples();
     QString ss = QObject::tr("0/%2").arg(m_TotalNumberOfFeatures);
     notifyStatusMessage(getMessagePrefix(), getHumanLabel(), ss);
 
-    /* Initialize output arrays.  Each array is initialized to m_TotalNumberOfFeatures+1 because the output arrays
-       will not use the 0 index so that each output array index matches up to a featureId. */
-    DoubleArrayType::Pointer cenx = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "cenx"); // x-coordinate of ellipse
-    for (int i=0; i < cenx->getNumberOfTuples(); i++)
-    {
-      cenx->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-    }
-
-    DoubleArrayType::Pointer ceny = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "ceny"); // y-coordinate of ellipse
-    for (int i=0; i < ceny->getNumberOfTuples(); i++)
-    {
-      ceny->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-    }
-
-    DoubleArrayType::Pointer majaxis = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "majaxis"); // major semi-axis
-    for (int i=0; i < majaxis->getNumberOfTuples(); i++)
-    {
-      majaxis->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-    }
-
-    DoubleArrayType::Pointer minaxis = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "minaxis"); // minor semi-axis
-    for (int i=0; i < minaxis->getNumberOfTuples(); i++)
-    {
-      minaxis->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-    }
-
-    DoubleArrayType::Pointer rotangle = DoubleArrayType::CreateArray(m_TotalNumberOfFeatures+1, QVector<size_t>(1, 1), "rotangle"); // Counter clockwise rotation from x-axis
-    for (int i=0; i < rotangle->getNumberOfTuples(); i++)
-    {
-      rotangle->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-    }
-
     m_MaxFeatureId = m_TotalNumberOfFeatures;
 
-    DoubleArrayType::Pointer additionalEllipses = DoubleArrayType::CreateArray(15, QVector<size_t>(1, 6), "additionalEllipses"); // Counter clockwise rotation from x-axis
+    DoubleArrayType::Pointer additionalEllipses = DoubleArrayType::CreateArray(15, QVector<size_t>(1, 6), "additionalEllipses");
     for (int i=0; i < additionalEllipses->getNumberOfTuples(); i++)
     {
       additionalEllipses->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
@@ -1490,7 +1506,7 @@ void DetectEllipsoids::execute()
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr, additionalEllipses));
         start = end;
         end = end + numOfTasks;
         if(end >= m_TotalNumberOfFeatures)
@@ -1505,7 +1521,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, cenx, ceny, majaxis, minaxis, rotangle, additionalEllipses);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr, additionalEllipses);
       impl();
     }
 
@@ -1520,13 +1536,13 @@ void DetectEllipsoids::execute()
     Int32ArrayType::Pointer ellipseDetectionFeatureIds = Int32ArrayType::CreateArray(imageDims, QVector<size_t>(1, 1), m_DetectedEllipsoidsFeatureIdsArrayPath.getDataArrayName());
     ellipseDetectionFeatureIds->initializeWithZeros();
 
-    for (int featureId = 1; featureId < cenx->getNumberOfTuples(); featureId++)
+    for (int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
     {
-      double cenx_val = cenx->getValue(featureId);
-      double ceny_val = ceny->getValue(featureId);
-      double majaxis_val = majaxis->getValue(featureId);
-      double minaxis_val = minaxis->getValue(featureId);
-      double rotangle_val = rotangle->getValue(featureId);
+      double cenx_val = m_CenterCoordinatesPtr->getComponent(featureId, 0);
+      double ceny_val = m_CenterCoordinatesPtr->getComponent(featureId, 1);
+      double majaxis_val = m_MajorAxisLengthArrayPtr->getValue(featureId);
+      double minaxis_val = m_MinorAxisLengthArrayPtr->getValue(featureId);
+      double rotangle_val = m_RotationalAnglesArrayPtr->getValue(featureId);
 
       double nan = std::numeric_limits<double>::quiet_NaN();
       if (cenx_val == nan || ceny_val == nan || majaxis_val == nan || minaxis_val == nan || rotangle_val == nan)

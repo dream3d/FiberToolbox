@@ -72,6 +72,21 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(DataArrayPath, DetectedEllipsoidsFeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath DetectedEllipsoidsFeatureIdsArrayPath READ getDetectedEllipsoidsFeatureIdsArrayPath WRITE setDetectedEllipsoidsFeatureIdsArrayPath)
 
+    SIMPL_FILTER_PARAMETER(DataArrayPath, EllipseFeatureAttributeMatrixPath)
+    Q_PROPERTY(DataArrayPath EllipseFeatureAttributeMatrixPath READ getEllipseFeatureAttributeMatrixPath WRITE setEllipseFeatureAttributeMatrixPath)
+
+    SIMPL_FILTER_PARAMETER(QString, CenterCoordinatesArrayName)
+    Q_PROPERTY(QString CenterCoordinatesArrayName READ getCenterCoordinatesArrayName WRITE setCenterCoordinatesArrayName)
+
+    SIMPL_FILTER_PARAMETER(QString, MajorAxisLengthArrayName)
+    Q_PROPERTY(QString MajorAxisLengthArrayName READ getMajorAxisLengthArrayName WRITE setMajorAxisLengthArrayName)
+
+    SIMPL_FILTER_PARAMETER(QString, MinorAxisLengthArrayName)
+    Q_PROPERTY(QString MinorAxisLengthArrayName READ getMinorAxisLengthArrayName WRITE setMinorAxisLengthArrayName)
+
+    SIMPL_FILTER_PARAMETER(QString, RotationalAnglesArrayName)
+    Q_PROPERTY(QString RotationalAnglesArrayName READ getRotationalAnglesArrayName WRITE setRotationalAnglesArrayName)
+
     SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
     Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
 
@@ -230,14 +245,21 @@ class DetectEllipsoids : public AbstractFilter
     void initialize();
 
   private:
-    static double           m_img_scale_length;
-    size_t                  m_MaxFeatureId;
-    size_t                  m_TotalNumberOfFeatures;
-    size_t                  m_FeaturesCompleted;
-    size_t                  m_AdditionalEllipsesCount;
-    QSemaphore              m_MaxFeatureIdSem;
-    QSemaphore              m_FeaturesCompletedSem;
-    QSemaphore              m_AdditionalEllipsesCountSem;
+    static double                     m_img_scale_length;
+    size_t                            m_MaxFeatureId;
+    size_t                            m_TotalNumberOfFeatures;
+    size_t                            m_FeaturesCompleted;
+    size_t                            m_AdditionalEllipsesCount;
+    QSemaphore                        m_MaxFeatureIdSem;
+    QSemaphore                        m_FeaturesCompletedSem;
+    QSemaphore                        m_AdditionalEllipsesCountSem;
+
+    AttributeMatrix::Pointer          m_EllipseFeatureAttributeMatrixPtr;
+    Int32ArrayType::Pointer           m_DetectedEllipsoidsFeatureIdsPtr;
+    DoubleArrayType::Pointer          m_CenterCoordinatesPtr;
+    DoubleArrayType::Pointer          m_MajorAxisLengthArrayPtr;
+    DoubleArrayType::Pointer          m_MinorAxisLengthArrayPtr;
+    DoubleArrayType::Pointer          m_RotationalAnglesArrayPtr;
 
     /**
      * @brief orientationFilter

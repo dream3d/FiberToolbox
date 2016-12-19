@@ -248,7 +248,7 @@ class DetectEllipsoidsTest
       exemplaryOutFile.close();
     }
 
-    //DREAM3D_REGISTER_TEST( RemoveTestFiles() );
+    DREAM3D_REGISTER_TEST( RemoveTestFiles() );
   }
 
   private:
