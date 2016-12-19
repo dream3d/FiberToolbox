@@ -762,7 +762,10 @@ public:
       extrema.insert(extremaIndex);
     }
 
-    return extrema.toList();
+    QList<int> extremaList = extrema.toList();
+    std::sort(extremaList.begin(), extremaList.end());
+
+    return extremaList;
   }
 
   // -----------------------------------------------------------------------------
