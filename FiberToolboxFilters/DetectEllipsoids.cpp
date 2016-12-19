@@ -1535,9 +1535,6 @@ void DetectEllipsoids::execute()
 
     // Create the new Ellipse Detection Feature Ids array
     err = 0;
-    AttributeMatrix::Pointer de_FeatureIds_AM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, err);
-    Int32ArrayType::Pointer ellipseDetectionFeatureIds = Int32ArrayType::CreateArray(imageDims, QVector<size_t>(1, 1), m_DetectedEllipsoidsFeatureIdsArrayPath.getDataArrayName());
-    ellipseDetectionFeatureIds->initializeWithZeros();
 
     for (int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
     {
@@ -1565,12 +1562,10 @@ void DetectEllipsoids::execute()
         if (x >= 0 && y >= 0 && x < xDim && y < yDim)
         {
           int index = xDim * y + x;
-          ellipseDetectionFeatureIds->setValue(index, featureId);
+          m_DetectedEllipsoidsFeatureIdsPtr->setValue(index, featureId);
         }
       }
     }
-
-    de_FeatureIds_AM->addAttributeArray(ellipseDetectionFeatureIds->getName(), ellipseDetectionFeatureIds);
   }
 
   notifyStatusMessage(getHumanLabel(), "Complete");
