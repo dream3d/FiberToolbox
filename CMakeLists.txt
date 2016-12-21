@@ -50,8 +50,8 @@ set(Project_SRCS "")
 include(${${PLUGIN_NAME}_SOURCE_DIR}/${PLUGIN_NAME}Filters/SourceList.cmake)
 # Add in our Plugin Specific FilterParameterWidgets
 include(${${PLUGIN_NAME}_SOURCE_DIR}/FilterParameterWidgets/SourceList.cmake)
-# Add in our Plugin Specific Algorithms
-include(${${PLUGIN_NAME}_SOURCE_DIR}/Algorithms/SourceList.cmake)
+# Add in our Plugin Specific Helper Classes
+include(${${PLUGIN_NAME}_SOURCE_DIR}/HelperClasses/SourceList.cmake)
 #-----------------------------------------------------
 # Include any extra Widgets that this plugin needs
 include(${${PLUGIN_NAME}_SOURCE_DIR}/Widgets/SourceList.cmake)
@@ -195,9 +195,9 @@ set(${PLUGIN_NAME}_MODULE_SRCS
   ${${PLUGIN_NAME}_Widgets_Generated_MOC_SRCS}
   ${${PLUGIN_NAME}_Widgets_Generated_UI_HDRS}
   ${${PLUGIN_NAME}_GEN_HDRS}
-  # -- Add in the algorithms
-  ${${PLUGIN_NAME}_Algorithms_HDRS}
-  ${${PLUGIN_NAME}_Algorithms_SRCS}
+  # -- Add in the helper classes
+  ${${PLUGIN_NAME}_HelperClasses_HDRS}
+  ${${PLUGIN_NAME}_HelperClasses_SRCS}
   # -- Add in the miscellaneous resources (license, plugin info, ...)
   ${${PLUGIN_NAME}_Generated_RC_SRCS}
   # -- Add in our Generated Version Files

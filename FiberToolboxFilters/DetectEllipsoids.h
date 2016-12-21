@@ -36,15 +36,13 @@
 #ifndef _detectellipsoids_h_
 #define _detectellipsoids_h_
 
-#include <complex>
-
 #include <QtCore/QSemaphore>
 
 #include "SIMPLib/SIMPLib.h"
 #include "SIMPLib/Common/AbstractFilter.h"
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
 
-typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
+#include "FiberToolbox/HelperClasses/DetectEllipsoidsImpl.h"
 
 /**
  * @brief The DetectEllipsoids class. See [Filter documentation](@ref fibertoolboxfilter) for details.
