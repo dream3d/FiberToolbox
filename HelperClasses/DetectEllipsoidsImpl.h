@@ -149,7 +149,9 @@ public:
     int offsetArrayNumOfComps = offsetArray->getNumberOfComponents();
 
     T accumulator = 0;
-    size_t xDim = image_tDims[0], yDim = image_tDims[1], zDim = image_tDims[2];
+    size_t xDim = image_tDims[0];
+    size_t yDim = image_tDims[1];
+    size_t zDim = 1;  // This can be changed later to handle 3-dimensions
     int gradNumTuples = image->getNumberOfTuples();
     int reverseKernelCount = reverse_kernel.size();
     for (int i=0; i<gradNumTuples; i++)
@@ -203,15 +205,6 @@ public:
    * @return
    */
   QList<int> findExtrema(DoubleArrayType::Pointer thresholdArray, QVector<size_t> tDims) const;
-
-  /**
-   * @brief sub2ind Helper Method.  Computes index from matrix coordinate
-   * @param tDims
-   * @param row
-   * @param col
-   * @return
-   */
-  size_t sub2ind(QVector<size_t> tDims, size_t row, size_t col) const;
 
   /**
    * @brief plotlineEdgeInter
@@ -269,6 +262,7 @@ public:
     int size = array->getNumberOfTuples();
     size_t xDim = tDims[0];
     size_t yDim = tDims[1];
+    size_t zDim = 1;  // This can be changed later to handle 3-dimensions
     typename DataArray<size_t>::Pointer indices = DataArray<size_t>::CreateArray(size, QVector<size_t>(1, 2), "Non-Zero Indices");
 
     if (array.get() == nullptr)
@@ -279,13 +273,16 @@ public:
     {
       for (size_t y = 0; y < yDim; y++)
       {
-        size_t index = (xDim * y) + x;
-        T value = array->getValue(index);
-        if (value != 0)
+        for (size_t z = 0; z < zDim; z++)
         {
-          indices->setComponent(count, 0, x);
-          indices->setComponent(count, 1, y);
-          count++;
+          size_t index = (xDim * y) + x;
+          T value = array->getValue(index);
+          if (value != 0)
+          {
+            indices->setComponent(count, 0, x);
+            indices->setComponent(count, 1, y);
+            count++;
+          }
         }
       }
     }

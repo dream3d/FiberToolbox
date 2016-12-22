@@ -298,7 +298,7 @@ void DetectEllipsoids::execute()
       {
         for(size_t x = 0; x < xDim; x++)
         {
-          index = (yDim * xDim * z) + (xDim * y) + x ; // Index into cellFeatureIds array
+          index =  sub2ind(imageDims, x, y, z); // Index into cellFeatureIds array
 
           featureId = cellFeatureIdsPtr[index];
 
@@ -419,7 +419,7 @@ void DetectEllipsoids::execute()
       return;
     }
 
-    // Plot each detected ellipse in the new Detected Ellipsoids Feature Ids array
+    // Plot each detected ellipse in the new Ellipse Detection Feature Ids array
     for (int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
     {
       double cenx_val = m_CenterCoordinatesPtr->getComponent(featureId, 0);
@@ -442,10 +442,11 @@ void DetectEllipsoids::execute()
       {
         int x = static_cast<int>(ellipseCoords->getComponent(i, 1));
         int y = static_cast<int>(ellipseCoords->getComponent(i, 0));
+        int z = 0;    // This can be changed later to handle 3-dimensions
 
         if (x >= 0 && y >= 0 && x < xDim && y < yDim)
         {
-          int index = xDim * y + x;
+          index = sub2ind(imageDims, x, y, z);
           m_DetectedEllipsoidsFeatureIdsPtr->setValue(index, featureId);
         }
       }
@@ -484,7 +485,7 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
         int xIdx = x - 1;
         int yIdx = y - 1;
         int zIdx = z - 1;
-        size_t index = (yDim * xDim * zIdx) + (xDim * yIdx) + xIdx;
+        size_t index = sub2ind(tDims, xIdx, yIdx, zIdx);
 
         double m = static_cast<double>(y)-1.0-doubleMax;
         double n = static_cast<double>(x)-1.0-doubleMax;
@@ -535,7 +536,8 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
         int xIdx = x - 1;
         int yIdx = y - 1;
         int zIdx = z - 1;
-        size_t index = (yDim * xDim * zIdx) + (xDim * yIdx) + xIdx;
+
+        size_t index = sub2ind(tDims, xIdx, yIdx, zIdx);
 
         double m = y-1-maxAxisLength;
         double n = x-1-maxAxisLength;
@@ -592,7 +594,12 @@ std::vector<double> DetectEllipsoids::smoothingFilter(int n_size)
 {
   int xDim = 2*n_size+1;
   int yDim = 2*n_size+1;
-  int zDim = 1;
+  int zDim = 1;  // This can be changed later to handle 3-dimensions
+  QVector<size_t> tDims;
+  tDims.push_back(xDim);
+  tDims.push_back(yDim);
+  tDims.push_back(zDim);
+
   std::vector<double> smooth(xDim*yDim*zDim);
   int n_size_squared = n_size*n_size;
 
@@ -604,7 +611,7 @@ std::vector<double> DetectEllipsoids::smoothingFilter(int n_size)
       {
         int m = y-n_size;
         int n = x-n_size;
-        int index = (yDim * xDim * z) + (xDim * y) + x;
+        int index = sub2ind(tDims, x, y, z);
 
         if( ((m*m) + (n*n)) <= n_size_squared)
         {
@@ -1226,6 +1233,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
   {
     double x = stackX->getValue(stackSize);
     double y = stackY->getValue(stackSize);
+    double z = 0;   // This can be changed later to handle 3-dimensions
     stackSize--;
 
     double xt = x - xc;
@@ -1233,7 +1241,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
 
     double sigma = a*xt*xt+2*b*xt*yt+c*yt*yt-d;
 
-    size_t index = I_tDims[0] * x + y;
+    size_t index = sub2ind(I_tDims, y, x, z);
     if (sigma <= 0 && I_tmp->getValue(index) != val) // fill in pixel
     {
       I_tmp->setValue(index, val);
@@ -1284,6 +1292,14 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
   }
 
   return I_tmp;
+}
+
+// -----------------------------------------------------------------------------
+// Helper Method - Grabs Index From Matrix Size
+// -----------------------------------------------------------------------------
+size_t DetectEllipsoids::sub2ind(QVector<size_t> tDims, size_t x, size_t y, size_t z) const
+{
+  return (tDims[1] * tDims[0] * z) + (tDims[0] * y) + x;
 }
 
 // -----------------------------------------------------------------------------

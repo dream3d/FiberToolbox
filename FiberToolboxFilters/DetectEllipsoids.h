@@ -58,6 +58,8 @@ class DetectEllipsoids : public AbstractFilter
 
     virtual ~DetectEllipsoids();
 
+    friend class DetectEllipsoidsImpl;
+
     enum ScaleBarUnits
     {
       MillimeterUnits = 0,
@@ -174,32 +176,6 @@ class DetectEllipsoids : public AbstractFilter
     */
     virtual void preflight();
 
-    /**
-     * @brief plotEllipsev2
-     * @param xc
-     * @param yc
-     * @param p
-     * @param q
-     * @param theta
-     * @param count
-     * @return
-     */
-    DoubleArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t &count);
-
-    /**
-     * @brief fillEllipse
-     * @param I
-     * @param I_tDims
-     * @param xc
-     * @param yc
-     * @param p
-     * @param q
-     * @param theta
-     * @param val
-     * @return
-     */
-    Int32ArrayType::Pointer fillEllipse(Int32ArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val);
-
   signals:
     /**
      * @brief updateFilterParameters Emitted when the Filter requests all the latest Filter parameters
@@ -287,6 +263,42 @@ class DetectEllipsoids : public AbstractFilter
      * @return
      */
     std::vector<double> smoothingFilter(int n_size);
+
+    /**
+     * @brief plotEllipsev2
+     * @param xc
+     * @param yc
+     * @param p
+     * @param q
+     * @param theta
+     * @param count
+     * @return
+     */
+    DoubleArrayType::Pointer plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t &count);
+
+    /**
+     * @brief fillEllipse
+     * @param I
+     * @param I_tDims
+     * @param xc
+     * @param yc
+     * @param p
+     * @param q
+     * @param theta
+     * @param val
+     * @return
+     */
+    Int32ArrayType::Pointer fillEllipse(Int32ArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val);
+
+    /**
+     * @brief sub2ind Helper Method.  Computes index from matrix coordinate
+     * @param tDims
+     * @param x
+     * @param y
+     * @param z
+     * @return
+     */
+    size_t sub2ind(QVector<size_t> tDims, size_t x, size_t y, size_t z) const;
 
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
