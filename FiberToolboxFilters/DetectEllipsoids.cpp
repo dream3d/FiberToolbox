@@ -62,6 +62,7 @@
 
 #include "FiberToolbox/FiberToolboxConstants.h"
 #include "FiberToolbox/FiberToolboxVersion.h"
+#include "FiberToolbox/HelperClasses/DetectEllipsoidsImpl.h"
 
 #include <cmath>
 #include <limits>
@@ -442,7 +443,7 @@ void DetectEllipsoids::execute()
       {
         int x = static_cast<int>(ellipseCoords->getComponent(i, 1));
         int y = static_cast<int>(ellipseCoords->getComponent(i, 0));
-        int z = 0;    // This can be changed later to handle 3-dimensions
+        int z = 0;    // 3DIM: This can be changed later to handle 3-dimensions
 
         if (x >= 0 && y >= 0 && x < xDim && y < yDim)
         {
@@ -468,7 +469,7 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
 
   size_t xDim = 2*maxAxisLength+1;
   size_t yDim = 2*maxAxisLength+1;
-  size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+  size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
   QVector<size_t> cDims(1, 3);
   tDims.clear();
   tDims.push_back(xDim);
@@ -495,7 +496,7 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
         {
           orientationCoords->setComponent(index, 0, std::cos(theta));
           orientationCoords->setComponent(index, 1, std::sin(theta));
-          orientationCoords->setComponent(index, 2, 0); // This can be changed later to handle 3-dimensions
+          orientationCoords->setComponent(index, 2, 0); // 3DIM: This can be changed later to handle 3-dimensions
         }
         else
         {
@@ -517,7 +518,7 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
 {
   size_t xDim = 2*maxAxisLength+1;
   size_t yDim = 2*maxAxisLength+1;
-  size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+  size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
   size_t totalElements = xDim * yDim * zDim;
   tDims.clear();
   tDims.push_back(xDim);
@@ -594,7 +595,7 @@ std::vector<double> DetectEllipsoids::smoothingFilter(int n_size)
 {
   int xDim = 2*n_size+1;
   int yDim = 2*n_size+1;
-  int zDim = 1;  // This can be changed later to handle 3-dimensions
+  int zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
   QVector<size_t> tDims;
   tDims.push_back(xDim);
   tDims.push_back(yDim);
@@ -888,8 +889,8 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       }
 
       /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is 1. For
-          % all points between, the ellipse has slope larger than 1 in
-          % magnitude, so y is always incremented at each step. */
+         all points between, the ellipse has slope larger than 1 in
+         magnitude, so y is always incremented at each step. */
       while (dy > dx)
       {
         //Store pixel values
@@ -1015,8 +1016,8 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       }
 
       /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is infinity.
-          % For all points between, the ellipse has slope greater than 1 in
-          % magnitude, so y is always decremented at each step. */
+         For all points between, the ellipse has slope greater than 1 in
+         magnitude, so y is always decremented at each step. */
       while (dx > 0)
       {
         //Store pixel values
@@ -1035,8 +1036,8 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       }
 
       /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
-          % ellipse has slope greater than 1 in magnitude, so y is always
-          % decremented at each step. */
+          ellipse has slope greater than 1 in magnitude, so y is always
+          decremented at each step. */
       while (y > ya)
       {
         //Store pixel values
@@ -1138,8 +1139,8 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       }
 
       /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
-          % ellipse has slope less than 1 in magnitude, so x is always
-          % incremented at each step. */
+          ellipse has slope less than 1 in magnitude, so x is always
+          incremented at each step. */
       while (x > xa)
       {
         //Store pixel values
@@ -1233,7 +1234,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
   {
     double x = stackX->getValue(stackSize);
     double y = stackY->getValue(stackSize);
-    double z = 0;   // This can be changed later to handle 3-dimensions
+    double z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
     stackSize--;
 
     double xt = x - xc;
@@ -1295,11 +1296,25 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
 }
 
 // -----------------------------------------------------------------------------
-// Helper Method - Grabs Index From Matrix Size
+// Helper Method - Grabs Index From Matrix Coordinates
 // -----------------------------------------------------------------------------
 size_t DetectEllipsoids::sub2ind(QVector<size_t> tDims, size_t x, size_t y, size_t z) const
 {
   return (tDims[1] * tDims[0] * z) + (tDims[0] * y) + x;
+}
+
+// -----------------------------------------------------------------------------
+// Helper Method - Grabs Matrix Coordinates From Array Index
+// -----------------------------------------------------------------------------
+void DetectEllipsoids::ind2sub(QVector<size_t> tDims, size_t index, size_t &x, size_t &y, size_t &z) const
+{
+  x = (index % tDims[0]);
+  y = (index / tDims[0]) % tDims[1];
+
+  if (tDims.size() > 2)
+  {
+    z = ((index / tDims[0]) / tDims[1]) % tDims[2];
+  }
 }
 
 // -----------------------------------------------------------------------------

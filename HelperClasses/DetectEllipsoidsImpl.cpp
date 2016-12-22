@@ -36,7 +36,6 @@
 #include "DetectEllipsoidsImpl.h"
 
 #include "FiberToolbox/HelperClasses/ComputeGradient.h"
-#include "FiberToolbox/FiberToolboxFilters/DetectEllipsoids.h"
 
 // -----------------------------------------------------------------------------
 //
@@ -142,7 +141,7 @@ void DetectEllipsoidsImpl::operator()() const
     DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(paddedObj_tDims, cDims, "featureObjArray");
     featureObjArray->initializeWithZeros();
 
-    size_t z = 0;   // This can be changed later to handle 3-dimensions
+    size_t z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
 //    for (size_t z = topL_Z; z <= bottomR_Z; z++)
 //    {
       for (size_t y = topL_Y; y <= bottomR_Y; y++)
@@ -251,8 +250,8 @@ void DetectEllipsoidsImpl::operator()() const
         size_t obj_ext_index = obj_ext_indices[detectedObjIdx];
 
         // Get x,y coordinates of current extrema value
-        size_t obj_ext_y = (obj_ext_index % paddedObj_xDim);
-        size_t obj_ext_x = (((obj_ext_index / paddedObj_xDim) % paddedObj_yDim));
+        size_t obj_ext_x = 0, obj_ext_y = 0, obj_ext_z = 0;
+        m_Filter->ind2sub(paddedObj_tDims, obj_ext_index, obj_ext_y, obj_ext_x, obj_ext_z);
 
         // Calculate mask array of the sub-object by finding min and max x/y values
         int mask_min_x = obj_ext_x - mask_rad + 1;
@@ -313,10 +312,9 @@ void DetectEllipsoidsImpl::operator()() const
             obj_edge_pair_a->setValue(count, edgeIndices.first);
             obj_edge_pair_b->setValue(count, edgeIndices.second);
 
-            size_t x1 = (edgeIndices.first % paddedObj_tDims[0]);
-            size_t y1 = ((edgeIndices.first / paddedObj_tDims[0]) % paddedObj_tDims[1]);
-            size_t x2 = (edgeIndices.second % paddedObj_tDims[0]);
-            size_t y2 = ((edgeIndices.second / paddedObj_tDims[0]) % paddedObj_tDims[1]);
+            size_t x1 = 0, y1 = 0, z1 = 0, x2 = 0, y2 = 0, z2 = 0;
+            m_Filter->ind2sub(paddedObj_tDims, edgeIndices.first, x1, y1, z1);
+            m_Filter->ind2sub(paddedObj_tDims, edgeIndices.second, x2, y2, z2);
 
             // Store the edge pair x,y coordinates
             obj_edge_pair_a1->setComponent(count, 0, x1);
@@ -444,7 +442,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
 
   // Step 1: Find and store the row number of each column's peak
 
-  size_t z = 0;   // This can be changed later to handle 3-dimensions
+  size_t z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
   for (int x = 0; x < xDim; x++)
   {
     double value = 0;
@@ -515,8 +513,8 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
   for (int i = 0; i < rcIntersectionListSize; i++)
   {
     int extremaIndex = rcIntersectionList[i];
-    int x = (extremaIndex % xDim);
-    int y = ((extremaIndex / xDim) % yDim);
+    size_t x = 0, y = 0, z = 0;
+    m_Filter->ind2sub(tDims, extremaIndex, x, y, z);
 
     // Top left direction
     int xDiag = x - 1;
@@ -619,7 +617,7 @@ QPair<size_t,size_t> DetectEllipsoidsImpl::plotlineEdgeInter(int x0, int y0, int
     return edge;
   }
 
-  size_t z = 0;   // This can be changed later to handle 3-dimensions
+  size_t z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
 
   //Search forward
   while (true)
@@ -854,7 +852,7 @@ void DetectEllipsoidsImpl::analyzeEdgePair(SizeTArrayType::Pointer obj_edge_pair
         {
           double x = ellipseCoords->getComponent(k, 0);
           double y = ellipseCoords->getComponent(k, 1);
-          double z = 0;   // This can be changed later to handle 3-dimensions
+          double z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
 
           if (x >= 0 && x < dobj_x && y >= 0 && y < dobj_y)
           {

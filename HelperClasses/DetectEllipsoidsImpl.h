@@ -41,6 +41,8 @@
 #include "SIMPLib/DataArrays/DataArray.hpp"
 #include "SIMPLib/DataContainers/AttributeMatrix.h"
 
+#include "FiberToolbox/FiberToolboxFilters/DetectEllipsoids.h"
+
 #include <complex>
 
 class DetectEllipsoids;
@@ -151,14 +153,14 @@ public:
     T accumulator = 0;
     size_t xDim = image_tDims[0];
     size_t yDim = image_tDims[1];
-    size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+    size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
     int gradNumTuples = image->getNumberOfTuples();
     int reverseKernelCount = reverse_kernel.size();
     for (int i=0; i<gradNumTuples; i++)
     {
-      int imageCurrentX = (i % xDim);
-      int imageCurrentY = ((i / xDim) % yDim);
-      int imageCurrentZ = (((i / xDim) / yDim) % zDim);
+      size_t imageCurrentX = 0, imageCurrentY = 0, imageCurrentZ = 0;
+      m_Filter->ind2sub(image_tDims, i, imageCurrentX, imageCurrentY, imageCurrentZ);
+
       for (int j = 0; j < reverseKernelCount; j++)
       {
         int currCoord_X = imageCurrentX + offsetArrayPtr[j*offsetArrayNumOfComps];
@@ -262,7 +264,7 @@ public:
     int size = array->getNumberOfTuples();
     size_t xDim = tDims[0];
     size_t yDim = tDims[1];
-    size_t zDim = 1;  // This can be changed later to handle 3-dimensions
+    size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
     typename DataArray<size_t>::Pointer indices = DataArray<size_t>::CreateArray(size, QVector<size_t>(1, 2), "Non-Zero Indices");
 
     if (array.get() == nullptr)

@@ -36,13 +36,17 @@
 #ifndef _detectellipsoids_h_
 #define _detectellipsoids_h_
 
+#include <complex>
+
 #include <QtCore/QSemaphore>
 
 #include "SIMPLib/SIMPLib.h"
 #include "SIMPLib/Common/AbstractFilter.h"
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
 
-#include "FiberToolbox/HelperClasses/DetectEllipsoidsImpl.h"
+typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
+
+class DetectEllipsoidsImpl;
 
 /**
  * @brief The DetectEllipsoids class. See [Filter documentation](@ref fibertoolboxfilter) for details.
@@ -291,7 +295,7 @@ class DetectEllipsoids : public AbstractFilter
     Int32ArrayType::Pointer fillEllipse(Int32ArrayType::Pointer I, QVector<size_t> I_tDims, double xc, double yc, double p, double q, double theta, double val);
 
     /**
-     * @brief sub2ind Helper Method.  Computes index from matrix coordinate
+     * @brief sub2ind Helper Method.  Computes index from matrix coordinates
      * @param tDims
      * @param x
      * @param y
@@ -299,6 +303,16 @@ class DetectEllipsoids : public AbstractFilter
      * @return
      */
     size_t sub2ind(QVector<size_t> tDims, size_t x, size_t y, size_t z) const;
+
+    /**
+     * @brief ind2sub Helper Method.  Computes matrix coordinates from index
+     * @param tDims
+     * @param index
+     * @param x
+     * @param y
+     * @param z
+     */
+    void ind2sub(QVector<size_t> tDims, size_t index, size_t &x, size_t &y, size_t &z) const;
 
     DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
     void operator=(const DetectEllipsoids&); // Operator '=' Not Implemented
