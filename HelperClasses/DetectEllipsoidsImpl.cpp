@@ -130,23 +130,24 @@ void DetectEllipsoidsImpl::operator()() const
     // Calculate the object's dimensions
     size_t obj_xDim = bottomR_X - topL_X + 1;
     size_t obj_yDim = bottomR_Y - topL_Y + 1;
+    size_t obj_zDim = bottomR_Z - topL_Z + 1;
 
     // Calculate the object's dimensions with a 1-pixel border around it
-    size_t image_xDim = (bottomR_X+1) - (topL_X-1) + 1;
-    size_t image_yDim = (bottomR_Y+1) - (topL_Y-1) + 1;
-    size_t zDim = bottomR_Z - topL_Z + 1;
+    size_t paddedObj_xDim = (bottomR_X+1) - (topL_X-1) + 1;
+    size_t paddedObj_yDim = (bottomR_Y+1) - (topL_Y-1) + 1;
+    //size_t paddedObj_zDim = (bottomR_Z+1) - (topL_Z-1) + 1;
 
     QVector<size_t> image_tDims;
-    image_tDims.push_back(image_xDim);
-    image_tDims.push_back(image_yDim);
-    image_tDims.push_back(zDim);
+    image_tDims.push_back(paddedObj_xDim);
+    image_tDims.push_back(paddedObj_yDim);
+    image_tDims.push_back(obj_zDim);
 
     QVector<size_t> obj_tDims;
     obj_tDims.push_back(obj_xDim);
     obj_tDims.push_back(obj_yDim);
-    obj_tDims.push_back(zDim);
+    obj_tDims.push_back(obj_zDim);
 
-    // Copy object pixels from m_CellFeatureIdsPtr into featureObjArray
+    // Copy the feature id object into its own flattened 2D array called featureObjArray
     QVector<size_t> cDims(1, 1);
     DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(image_tDims, cDims, "featureObjArray");
     featureObjArray->initializeWithZeros();
@@ -160,7 +161,7 @@ void DetectEllipsoidsImpl::operator()() const
           size_t objX = x - topL_X;
           size_t objY = y - topL_Y;
           size_t objZ = z - topL_Z;
-          size_t objIndex = (image_yDim * image_xDim * objZ) + (image_xDim * (objY+1)) + (objX+1);
+          size_t objIndex = (paddedObj_yDim * paddedObj_xDim * objZ) + (paddedObj_xDim * (objY+1)) + (objX+1);
           size_t imageIndex = (m_CellFeatureIdsDims[1] * m_CellFeatureIdsDims[0] * z) + (m_CellFeatureIdsDims[0] * y) + x;
           double featureValue = m_CellFeatureIdsPtr[imageIndex];
 
@@ -178,14 +179,19 @@ void DetectEllipsoidsImpl::operator()() const
       }
     }
 
+    // Calculate the minimum pixel threshold
     double min_pix = std::round(M_PI * m_Axis_Min * m_Axis_Min / 2);
+
+    // Find all indices of non-zero elements in the featureObjArray
     SizeTArrayType::Pointer objPixelsArray = findNonZeroIndices<double>(featureObjArray, image_tDims);
 
-    size_t numberOfDetectedEllipses = 0;
+    size_t numberOfDetectedEllipses = 0;  // Keep track of how many ellipses we've found in this object
+
+    // Run this loop until the number of non-zero pixels in the object is less than the minimum pixel threshold
     while (objPixelsArray->getNumberOfTuples() > min_pix)
     {
-      // Convolute Gradient of object with filters
-      ComputeGradient grad(featureObjArray, image_xDim, image_yDim);
+      // Find the gradient matrix of the object
+      ComputeGradient grad(featureObjArray, paddedObj_xDim, paddedObj_yDim);
       grad.compute();
 
       DoubleArrayType::Pointer gradX = grad.getGradX();
@@ -193,20 +199,20 @@ void DetectEllipsoidsImpl::operator()() const
 
       //std::cout << "Feature Id: " << i << "\tNumTuples = " << gradX->getNumberOfTuples() << std::endl;
 
+      // Convolute Gradient of object with convolution kernel
       DE_ComplexDoubleVector gradX_conv = convoluteImage(gradX, m_ConvCoords_X, m_ConvOffsetArray, image_tDims);
       DE_ComplexDoubleVector gradY_conv = convoluteImage(gradY, m_ConvCoords_Y, m_ConvOffsetArray, image_tDims);
 
+      // Calculate the magnitude matrix of the convolution.
       DoubleArrayType::Pointer obj_conv_mag = DoubleArrayType::CreateArray(gradX_conv.size(), QVector<size_t>(1, 1), "obj_conv_mag");
       for (int i=0; i < gradX_conv.size(); i++)
       {
         std::complex<double> complexValue = gradX_conv[i] + gradY_conv[i];
-
-        // Calculate magnitude of convolution
         double value = std::abs(complexValue);
         obj_conv_mag->setValue(i, value);
       }
 
-      // Smooth Accumulator with Smoothing filter
+      // Smooth the magnitude matrix using a smoothing kernel.
       std::vector<double> obj_conv_mag_smooth = convoluteImage(obj_conv_mag, m_SmoothKernel, m_SmoothOffsetArray, image_tDims);
       double obj_conv_max = 0;
       for (int i=0; i<obj_conv_mag_smooth.size(); i++)
@@ -219,11 +225,12 @@ void DetectEllipsoidsImpl::operator()() const
         obj_conv_mag->setValue(i, obj_conv_mag_smooth[i]);
       }
 
-      // Threshold convolution
+      // Create threshold matrix
       DoubleArrayType::Pointer obj_conv_thresh = DoubleArrayType::CreateArray(obj_conv_mag->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_conv_thresh");
       obj_conv_thresh->initializeWithZeros();
       for (int i=0; i<obj_conv_thresh->getNumberOfTuples(); i++)
       {
+        // Copy values into threshold matrix that are greater than (0.7 * obj_conv_max) from magnitude matrix
         if (obj_conv_mag->getValue(i) > (0.7 * obj_conv_max))
         {
           double value = obj_conv_mag->getValue(i);
@@ -231,25 +238,30 @@ void DetectEllipsoidsImpl::operator()() const
         }
       }
 
+      // Find all local extrema coordinates in the threshold matrix
       QList<int> obj_ext_indices = findExtrema(obj_conv_thresh, image_tDims);
       int obj_ext_num = obj_ext_indices.size();
 
+      // Only process a maximum of 3 sub-objects
       if(obj_ext_num > 3)
       {
         obj_ext_num = 3;
       }
 
+      // Calculate mask radius
+      size_t mask_rad = m_Axis_Max + m_Axis_Min;
+
       int detectedObjIdx = 0;
+      // For each sub-object...
       for (; detectedObjIdx < obj_ext_num; detectedObjIdx++)
       {
         size_t obj_ext_index = obj_ext_indices[detectedObjIdx];
 
-        // Get indices of extrema value
-        size_t obj_ext_y = (obj_ext_index % image_xDim);
-        size_t obj_ext_x = (((obj_ext_index / image_xDim) % image_yDim));
+        // Get x,y coordinates of current extrema value
+        size_t obj_ext_y = (obj_ext_index % paddedObj_xDim);
+        size_t obj_ext_x = (((obj_ext_index / paddedObj_xDim) % paddedObj_yDim));
 
-        size_t mask_rad = m_Axis_Max + m_Axis_Min;
-
+        // Calculate mask array of the sub-object by finding min and max x/y values
         int mask_min_x = obj_ext_x - mask_rad + 1;
         if ( mask_min_x < 1)
         {
@@ -274,6 +286,7 @@ void DetectEllipsoidsImpl::operator()() const
           mask_max_y = image_tDims[0];
         }
 
+        // Create and populate mask array of the sub-object
         DoubleArrayType::Pointer obj_mask = DoubleArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "obj_mask");
         obj_mask->initializeWithZeros();
 
@@ -286,7 +299,7 @@ void DetectEllipsoidsImpl::operator()() const
           }
         }
 
-        // Compute the edge array
+        // Compute the edge matrix of the sub-object
         Int8ArrayType::Pointer edgeArray = findEdges<double>(obj_mask, image_tDims);
 
         SizeTArrayType::Pointer obj_edges = findNonZeroIndices<int8_t>(edgeArray, image_tDims);
@@ -295,6 +308,8 @@ void DetectEllipsoidsImpl::operator()() const
         SizeTArrayType::Pointer obj_edge_pair_b = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 1), "obj_edge_pair_b");
         SizeTArrayType::Pointer obj_edge_pair_a1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_a1");
         SizeTArrayType::Pointer obj_edge_pair_b1 = SizeTArrayType::CreateArray(obj_edges->getNumberOfTuples(), QVector<size_t>(1, 2), "obj_edge_pair_b1");
+
+        // Determine edge pairs that will be used to analyze if the sub-object is an ellipse
         int count = 0;
         for (int j=0; j<obj_edges->getNumberOfTuples(); j++)
         {
@@ -310,6 +325,7 @@ void DetectEllipsoidsImpl::operator()() const
             size_t x2 = (edgeIndices.second % image_tDims[0]);
             size_t y2 = ((edgeIndices.second / image_tDims[0]) % image_tDims[1]);
 
+            // Store the edge pair x,y coordinates
             obj_edge_pair_a1->setComponent(count, 0, x1);
             obj_edge_pair_a1->setComponent(count, 1, y1);
             obj_edge_pair_b1->setComponent(count, 0, x2);
@@ -322,18 +338,20 @@ void DetectEllipsoidsImpl::operator()() const
         obj_edge_pair_a1->resize(count);
         obj_edge_pair_b1->resize(count);
 
-        // Search current object for ellipses
+        // Analyze each edge pair using an accumulation array to gain votes to help determine that the sub-object is an ellipse
         size_t can_num = 0;
         for (int k = 0; k < obj_edge_pair_a1->getNumberOfTuples(); k++)
         {
           analyzeEdgePair(obj_edge_pair_a1, obj_edge_pair_b1, k, image_tDims, edgeArray, can_num, cenx_can, ceny_can, maj_can, min_can, rot_can, accum_can);
         }
 
+        // If the sub-object has enough votes, it is found to be an ellipse
         if(can_num > 0) // Assume best match is the ellipse
         {
           // Increment the ellipse counter
           m_Filter->setEllipse_Count(m_Filter->getEllipse_Count() + 1);
 
+          // Get the index into the ellipse value arrays that has the most votes
           int accum_idx = getIdOfMax<double>(accum_can);
 
           /* If this is another ellipse in the same overall object,
@@ -345,13 +363,14 @@ void DetectEllipsoidsImpl::operator()() const
             m_EllipseFeatureAM->resizeAttributeArrays(QVector<size_t>(1, objId + 1));
           }
 
-          // Store ellipse parameters
           double cenx_val = cenx_can->getValue(accum_idx);
           double ceny_val = ceny_can->getValue(accum_idx);
           double majaxis_val = maj_can->getValue(accum_idx);
           double minaxis_val = min_can->getValue(accum_idx);
 
           double rotangle_val = rot_can->getValue(accum_idx);
+
+          // Convert rotational angle until it is within -pi/2 and pi/2
           while (rotangle_val > M_PI_2 || rotangle_val < -M_PI_2)
           {
             if (rotangle_val > M_PI_2)
@@ -364,14 +383,14 @@ void DetectEllipsoidsImpl::operator()() const
             }
           }
 
+          // Store ellipse parameters
           m_Center->setComponent(objId, 0, cenx_val);
           m_Center->setComponent(objId, 1, ceny_val);
           m_Majaxis->setValue(objId, majaxis_val);
           m_Minaxis->setValue(objId, minaxis_val);
           m_Rotangle->setValue(objId, rotangle_val);
 
-          /* Remove pixels from object (including additional 1 pixel thick boarder)
-             * and reassign remaining pixels to array */
+          // Remove the sub-object from the feature id object's 2D array
           Int32ArrayType::Pointer featureObjOnesArray = Int32ArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "featureObjOnesArray");
           featureObjOnesArray->initializeWithValue(1);
 
@@ -383,18 +402,20 @@ void DetectEllipsoidsImpl::operator()() const
             featureObjArray->setValue(i, value);
           }
 
-          // Translate center of ellipse into real space
+          // Translate center of ellipse into feature id array coordinates from object coordinates
           size_t obj_x_min = topL_Y;
           size_t obj_y_min = topL_X;
 
           m_Center->setComponent(objId, 0, m_Center->getComponent(objId, 0) + obj_x_min);
           m_Center->setComponent(objId, 1, m_Center->getComponent(objId, 1) + obj_y_min);
 
-          // Clean Accumulator
+          // Clear Accumulator
           accum_can->initializeWithZeros();
 
+          // Find all indices of non-zero elements in the featureObjArray
           objPixelsArray = findNonZeroIndices<double>(featureObjArray, image_tDims);
 
+          // We have found an ellipse, so increment the counter
           numberOfDetectedEllipses++;
           break;
         }
@@ -411,6 +432,7 @@ void DetectEllipsoidsImpl::operator()() const
       }
     }
 
+    // Notify the user interface that the feature is completed
     m_Filter->notifyFeatureCompleted();
   }
 }
@@ -427,7 +449,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
   QSet<int> extremaCols;
   QList<int> extremaCol_flatIndices;
 
-  // Search peaks through columns
+  // Step 1: Find and store the row number of each column's peak
   for (int x = 0; x < xDim; x++)
   {
     double value = 0;
@@ -451,14 +473,14 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
     }
   }
 
-  // Search peaks through rows, on columns with extrema points:
+  // Find and store peaks in rows that were found in Step 1
   QList<int> extremaRow_flatIndices;
   QList<int> extremaCols_list = extremaCols.toList();
   int extremaColSize = extremaCols_list.size();
   for (int i=0; i<extremaColSize; i++)
   {
     int y = extremaCols_list[i];
-    int extremaIndex = xDim * y + 0;  // Initialize to index of first value in extremaRow_flatIndices
+    int extremaIndex = xDim * y + 0;
     for (int x=1; x<xDim; x++)
     {
       int index = (xDim * y) + x;
@@ -501,6 +523,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
     int x = (extremaIndex % xDim);
     int y = ((extremaIndex / xDim) % yDim);
 
+    // Top left direction
     int xDiag = x - 1;
     int yDiag = y - 1;
     while (xDiag >= 0 && yDiag >= 0)
@@ -514,6 +537,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
       yDiag--;
     }
 
+    // Bottom right direction
     xDiag = x + 1;
     yDiag = y + 1;
     while (xDiag < xDim && yDiag < yDim)
@@ -527,6 +551,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
       yDiag++;
     }
 
+    // Bottom left direction
     xDiag = x - 1;
     yDiag = y + 1;
     while (xDiag >= 0 && yDiag < yDim)
@@ -540,6 +565,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
       yDiag++;
     }
 
+    // Top right direction
     xDiag = x + 1;
     yDiag = y - 1;
     while (xDiag < xDim && yDiag >= 0)
@@ -563,7 +589,7 @@ QList<int> DetectEllipsoidsImpl::findExtrema(DoubleArrayType::Pointer thresholdA
 }
 
 // -----------------------------------------------------------------------------
-// helper method - grabs index from matrix size
+// Helper Method - Grabs Index From Matrix Size
 // -----------------------------------------------------------------------------
 size_t DetectEllipsoidsImpl::sub2ind(QVector<size_t> tDims, size_t row, size_t col) const
 {

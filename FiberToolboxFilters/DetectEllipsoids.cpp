@@ -291,6 +291,7 @@ void DetectEllipsoids::execute()
     size_t xDim = imageDims[0], yDim = imageDims[1], zDim = imageDims[2];
 
     size_t index = 0;
+    // Store the coordinates in the corners array
     for(size_t z = 0; z < zDim; z++)
     {
       for(size_t y = 0; y < yDim; y++)
@@ -418,9 +419,7 @@ void DetectEllipsoids::execute()
       return;
     }
 
-    // Create the new Ellipse Detection Feature Ids array
-    err = 0;
-
+    // Plot each detected ellipse in the new Detected Ellipsoids Feature Ids array
     for (int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
     {
       double cenx_val = m_CenterCoordinatesPtr->getComponent(featureId, 0);
