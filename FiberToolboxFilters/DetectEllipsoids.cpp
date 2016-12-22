@@ -99,10 +99,8 @@ DetectEllipsoids::DetectEllipsoids() :
   m_MaxFeatureId(0),
   m_TotalNumberOfFeatures(0),
   m_FeaturesCompleted(0),
-  m_AdditionalEllipsesCount(0),
   m_MaxFeatureIdSem(1),
-  m_FeaturesCompletedSem(1),
-  m_AdditionalEllipsesCountSem(1)
+  m_FeaturesCompletedSem(1)
 { 
   initialize();
   setupFilterParameters();
@@ -274,6 +272,8 @@ void DetectEllipsoids::execute()
     QVector<size_t> cDims(1, numComps);
     int err = 0;
     AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_ActiveArrayPath, err);
+
+    // Create corners array, which stores pixel coordinates for the top-left and bottom-right coordinates of each feature object
     UInt32ArrayType::Pointer corners = UInt32ArrayType::CreateArray(activeAM->getTupleDimensions(), cDims, "Corners of Feature");
     for (int i=0; i<corners->getNumberOfTuples(); i++)
     {
@@ -342,6 +342,7 @@ void DetectEllipsoids::execute()
     double axis_min = std::round( m_MinFiberAxisLength / img_pix_length );
     double axis_max = std::round( m_MaxFiberAxisLength / img_pix_length );
 
+    // Execute the Orientation Filter and Hough Circle Filter
     QVector<size_t> orient_tDims;
     QVector<size_t> hc_tDims;
     DoubleArrayType::Pointer orientArray = orientationFilter(axis_min, axis_max, orient_tDims);
@@ -354,37 +355,30 @@ void DetectEllipsoids::execute()
       notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
     }
 
-    // This function fills the xCoords, yCoords, and zCoords arrays with values
+    // This convolution function fills the convCoords_X, convCoords_Y, and convCoords_Z arrays with values
     DE_ComplexDoubleVector convCoords_X;
     DE_ComplexDoubleVector convCoords_Y;
     DE_ComplexDoubleVector convCoords_Z;
     convolutionFilter(orientArray, houghCircleVector, convCoords_X, convCoords_Y, convCoords_Z);
 
+    // Create offset array to use for convolutions
     Int32ArrayType::Pointer convOffsetArray = createOffsetArray(orient_tDims);
 
+    // Execute the smoothing filter
     int n_size = 3;
     std::vector<double> smoothFil = smoothingFilter(n_size);
     QVector<size_t> smooth_tDims;
     smooth_tDims.push_back(2*n_size+1);
     smooth_tDims.push_back(2*n_size+1);
     smooth_tDims.push_back(1);
+
+    // Create offset array to use for smoothing convolutions
     Int32ArrayType::Pointer smoothOffsetArray = createOffsetArray(smooth_tDims);
 
     QString ss = QObject::tr("0/%2").arg(m_TotalNumberOfFeatures);
     notifyStatusMessage(getMessagePrefix(), getHumanLabel(), ss);
 
     m_MaxFeatureId = m_TotalNumberOfFeatures;
-
-    DoubleArrayType::Pointer additionalEllipses = DoubleArrayType::CreateArray(15, QVector<size_t>(1, 6), "additionalEllipses");
-    for (int i=0; i < additionalEllipses->getNumberOfTuples(); i++)
-    {
-      additionalEllipses->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
-      additionalEllipses->setComponent(i, 1, std::numeric_limits<double>::quiet_NaN());
-      additionalEllipses->setComponent(i, 2, std::numeric_limits<double>::quiet_NaN());
-      additionalEllipses->setComponent(i, 3, std::numeric_limits<double>::quiet_NaN());
-      additionalEllipses->setComponent(i, 4, std::numeric_limits<double>::quiet_NaN());
-      additionalEllipses->setComponent(i, 5, std::numeric_limits<double>::quiet_NaN());
-    }
 
 #ifdef SIMPLib_USE_PARALLEL_ALGORITHMS
     tbb::task_scheduler_init init;
@@ -400,7 +394,7 @@ void DetectEllipsoids::execute()
       int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr, additionalEllipses));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr));
         start = end;
         end = end + numOfTasks;
         if(end >= m_TotalNumberOfFeatures)
@@ -415,7 +409,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr, additionalEllipses);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr);
       impl();
     }
 
@@ -1303,18 +1297,6 @@ size_t DetectEllipsoids::getUniqueFeatureId()
   size_t id = m_MaxFeatureId;
   m_MaxFeatureIdSem.release();
   return id;
-}
-
-// -----------------------------------------------------------------------------
-//
-// -----------------------------------------------------------------------------
-size_t DetectEllipsoids::getAdditionalEllipsesIndex()
-{
-  m_AdditionalEllipsesCountSem.acquire();
-  size_t index = m_AdditionalEllipsesCount;
-  m_AdditionalEllipsesCount++;
-  m_AdditionalEllipsesCountSem.release();
-  return index;
 }
 
 // -----------------------------------------------------------------------------

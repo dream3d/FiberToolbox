@@ -41,7 +41,7 @@
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM, DoubleArrayType::Pointer additionalEllipses) :
+DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM) :
   m_Filter(filter),
   m_CellFeatureIdsPtr(cellFeatureIdsPtr),
   m_CellFeatureIdsDims(cellFeatureIdsDims),
@@ -63,8 +63,7 @@ DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFe
   m_Majaxis(majaxis),
   m_Minaxis(minaxis),
   m_Rotangle(rotangle),
-  m_EllipseFeatureAM(ellipseFeatureAM),
-  m_AdditionalEllipses(additionalEllipses)
+  m_EllipseFeatureAM(ellipseFeatureAM)
 {
 
 }
@@ -118,6 +117,7 @@ void DetectEllipsoidsImpl::operator()() const
     accum_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
+  // Run the ellipse detection algorithm on each object
   for(size_t featureId = m_FeatureIdStart; featureId < m_FeatureIdEnd; featureId++)
   {
     size_t topL_X = m_Corners->getComponent(featureId, 0);
@@ -127,8 +127,11 @@ void DetectEllipsoidsImpl::operator()() const
     size_t bottomR_Y = m_Corners->getComponent(featureId, 4);
     size_t bottomR_Z = m_Corners->getComponent(featureId, 5);
 
+    // Calculate the object's dimensions
     size_t obj_xDim = bottomR_X - topL_X + 1;
     size_t obj_yDim = bottomR_Y - topL_Y + 1;
+
+    // Calculate the object's dimensions with a 1-pixel border around it
     size_t image_xDim = (bottomR_X+1) - (topL_X-1) + 1;
     size_t image_yDim = (bottomR_Y+1) - (topL_Y-1) + 1;
     size_t zDim = bottomR_Z - topL_Z + 1;
@@ -143,6 +146,7 @@ void DetectEllipsoidsImpl::operator()() const
     obj_tDims.push_back(obj_yDim);
     obj_tDims.push_back(zDim);
 
+    // Copy object pixels from m_CellFeatureIdsPtr into featureObjArray
     QVector<size_t> cDims(1, 1);
     DoubleArrayType::Pointer featureObjArray = DoubleArrayType::CreateArray(image_tDims, cDims, "featureObjArray");
     featureObjArray->initializeWithZeros();
@@ -339,14 +343,6 @@ void DetectEllipsoidsImpl::operator()() const
           {
             objId = m_Filter->getUniqueFeatureId();
             m_EllipseFeatureAM->resizeAttributeArrays(QVector<size_t>(1, objId + 1));
-
-            int extraEllipsesIndex = m_Filter->getAdditionalEllipsesIndex();
-            if (extraEllipsesIndex >= m_AdditionalEllipses->getNumberOfTuples())
-            {
-              m_AdditionalEllipses->resize(extraEllipsesIndex + 1);
-            }
-            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 0, featureId);       // Old Feature Id
-            m_AdditionalEllipses->setComponent(extraEllipsesIndex, 1, objId);           // New Feature Id
           }
 
           // Store ellipse parameters

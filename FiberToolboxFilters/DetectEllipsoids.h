@@ -115,12 +115,6 @@ class DetectEllipsoids : public AbstractFilter
     size_t getUniqueFeatureId();
 
     /**
-     * @brief getAdditionalEllipsesIndex
-     * @return
-     */
-    size_t getAdditionalEllipsesIndex();
-
-    /**
      * @brief notifyFeatureCompleted
      * @return
      */
@@ -247,10 +241,8 @@ class DetectEllipsoids : public AbstractFilter
     size_t                            m_MaxFeatureId;
     size_t                            m_TotalNumberOfFeatures;
     size_t                            m_FeaturesCompleted;
-    size_t                            m_AdditionalEllipsesCount;
     QSemaphore                        m_MaxFeatureIdSem;
     QSemaphore                        m_FeaturesCompletedSem;
-    QSemaphore                        m_AdditionalEllipsesCountSem;
 
     AttributeMatrix::Pointer          m_EllipseFeatureAttributeMatrixPtr;
     Int32ArrayType::Pointer           m_DetectedEllipsoidsFeatureIdsPtr;
