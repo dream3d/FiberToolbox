@@ -68,7 +68,6 @@ The ellipse detection algorithm has 16 steps.
 | Threshold for Hough Transform | Double | Threshold used in the Hough Transform algorithm |
 | Minimum Aspect Ratio | Double | Minimum Aspect Ratio |
 | Length of Image Scale Bar (in units of image scale bar) | Integer | Length of the Image Scale Bar |
-| Units of Image Scale Bar | Choice | Units used in calculations |
 
 ## Required Geometry ##
 Image
