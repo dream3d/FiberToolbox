@@ -1311,6 +1311,7 @@ void DetectEllipsoids::ind2sub(QVector<size_t> tDims, size_t index, size_t &x, s
   x = (index % tDims[0]);
   y = (index / tDims[0]) % tDims[1];
 
+  // 3DIM:
   if (tDims.size() > 2)
   {
     z = ((index / tDims[0]) / tDims[1]) % tDims[2];

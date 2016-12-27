@@ -5,7 +5,7 @@ Detect Ellipsoids {#detectellipsoids}
 FiberToolbox (FiberToolbox)
 
 ## Description ##
-This **Filter** detects ellipsoids in an existing 2D **Feature Ids** array, and outputs a new 2D **Detected Ellipsoids Feature Ids** array that contains the outlines of all the ellipses that were found.  The algorithm is based on a 1D accumulation array, and is described in the following paper:
+This **Filter** detects ellipsoids in an existing 2D **Feature Ids** array, and outputs a new 2D **Detected Ellipsoids Feature Ids** array that contains the outlines of all the ellipses that were found, as well as several other arrays that contain center coordinate, major axis length, minor axis length, and rotational angle values.  The algorithm is based on a 1D accumulation array, and is described in the following paper:
 
 >Craig P. Przybyla, Stephan Bricker, Jeff Simmons, and Russell Hardie, "Automated Microstructure-Properties Characterization and Simulation in Brittle Matrix Continuous Fiber Reinforced Composites."
 
