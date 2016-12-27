@@ -7,7 +7,7 @@ FiberToolbox (FiberToolbox)
 ## Description ##
 This **Filter** detects ellipsoids in an existing 2D **Feature Ids** array, and outputs a new 2D **Detected Ellipsoids Feature Ids** array that contains the outlines of all the ellipses that were found, as well as several other arrays that contain center coordinate, major axis length, minor axis length, and rotational angle values.  The algorithm is based on a 1D accumulation array, and is described in the following paper:
 
->Craig P. Przybyla, Stephan Bricker, Jeff Simmons, and Russell Hardie, "Automated Microstructure-Properties Characterization and Simulation in Brittle Matrix Continuous Fiber Reinforced Composites."
+[1] C. P. Przybyla, S. Bricker, J. P. Simmons, and R. Hardie, "Automated Microstructure-Properties Characterization and Simulation in Brittle Matrix Continuous Fiber Reinforced Composites.", **29th Annual Technical Conference of the American Society for Composites 2014**, Vol. 1
 
 ## Ellipse Detection Example ##
 ![Feature Ids Array (Figure 1)](Images/feature_ids.png)
@@ -26,7 +26,7 @@ The ellipse detection algorithm processes a 2D **Feature Ids** array that contai
 In **Figure 3**, the outlines of the detected ellipses, colored in green, are overlayed on top of the original feature ids array.
 
 ## Algorithm ##
-The ellipse detection algorithm has 15 steps.
+The ellipse detection algorithm has 16 steps.
 
 1. Find corner coordinates of each feature id and use them to calculate each feature id object's dimensions
 
@@ -48,17 +48,17 @@ The ellipse detection algorithm has 15 steps.
 
 10. Create a mask array for the sub-object.
 
-10. Compute the edge matrix of the sub-object, and use it along with the center coordinates to determine edge pairs that will be analyzed to determine if the sub-object is an ellipse.
+11. Compute the edge matrix of the sub-object, and use it along with the center coordinates to determine edge pairs that will be analyzed to determine if the sub-object is an ellipse.
 
-11. Analyze each edge pair using an accumulation array to gain votes to help determine that the sub-object is an ellipse.  The edge pair analysis algorithm is detailed in the scientific paper in the **Description** section above.
+12. Analyze each edge pair using an accumulation array to gain votes to help determine that the sub-object is an ellipse.  The edge pair analysis algorithm is detailed in the scientific paper in the **Description** section above.
 
-12. If the sub-object is found to be an ellipse, then store the center coordinates, major axis length, minor axis length, and rotational angle in their respective output arrays with the sub-object's feature id as the index.  If an ellipse has already been found using this feature id (in other words, this is a feature id that has multiple ellipses in it), then generate a new, unique feature id and store this sub-object's information at that index instead.
+13. If the sub-object is found to be an ellipse, then store the center coordinates, major axis length, minor axis length, and rotational angle in their respective output arrays with the sub-object's feature id as the index.  If an ellipse has already been found using this feature id (in other words, this is a feature id that has multiple ellipses in it), then generate a new, unique feature id and store this sub-object's information at that index instead.
 
-13. Remove the sub-object from the feature id object's 2D array, and repeat steps 4-12 until either the feature id object has run out of sub-objects, or the total number of pixels in the feature id object is below a certain minimum pixel threshold.
+14. Remove the sub-object from the feature id object's 2D array, and repeat steps 4-12 until either the feature id object has run out of sub-objects, or the total number of pixels in the feature id object is below a certain minimum pixel threshold.
 
-14. Repeat steps 2-13 for each feature id in the **Feature Ids** array.
+15. Repeat steps 2-13 for each feature id in the **Feature Ids** array.
 
-15. Plot each ellipse in **Detected Ellipsoids Feature Ids** array.
+16. Plot each ellipse in **Detected Ellipsoids Feature Ids** array.
 
 ## Parameters ##
 | Name | Type | Description |
