@@ -56,6 +56,7 @@
 #include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
 #include "SIMPLib/FilterParameters/StringFilterParameter.h"
 #include "SIMPLib/FilterParameters/AttributeMatrixCreationFilterParameter.h"
+#include "SIMPLib/FilterParameters/AttributeMatrixSelectionFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
 #include "SIMPLib/DataArrays/StringDataArray.hpp"
@@ -95,7 +96,6 @@ DetectEllipsoids::DetectEllipsoids() :
   m_HoughTransformThreshold(0.5f),
   m_MinAspectRatio(0.4f),
   m_ImageScaleBarLength(100),
-  m_ImageScaleBarUnits(ScaleBarUnits::MicronUnits),
   m_Ellipse_Count(0),
   m_MaxFeatureId(0),
   m_TotalNumberOfFeatures(0),
@@ -137,26 +137,11 @@ void DetectEllipsoids::setupFilterParameters()
 {
   FilterParameterVector parameters;
 
-  parameters.push_back(SIMPL_NEW_INTEGER_FP("Min Fiber Axis Length (in units of image scale bar)", MinFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
-  parameters.push_back(SIMPL_NEW_INTEGER_FP("Max Fiber Axis Length (in units of image scale bar)", MaxFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
+  parameters.push_back(SIMPL_NEW_INTEGER_FP("Min Fiber Axis Length", MinFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
+  parameters.push_back(SIMPL_NEW_INTEGER_FP("Max Fiber Axis Length", MaxFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
   parameters.push_back(SIMPL_NEW_DOUBLE_FP("Threshold for Hough Transform", HoughTransformThreshold, FilterParameter::Parameter, DetectEllipsoids));
   parameters.push_back(SIMPL_NEW_DOUBLE_FP("Minimum Aspect Ratio", MinAspectRatio, FilterParameter::Parameter, DetectEllipsoids));
-  parameters.push_back(SIMPL_NEW_INTEGER_FP("Length of Image Scale Bar (in units of image scale bar)", ImageScaleBarLength, FilterParameter::Parameter, DetectEllipsoids));
-
-  {
-    ChoiceFilterParameter::Pointer parameter = ChoiceFilterParameter::New();
-    parameter->setHumanLabel("Units of Image Scale Bar");
-    parameter->setPropertyName("ImageScaleBarUnits");
-    parameter->setSetterCallback(SIMPL_BIND_SETTER(DetectEllipsoids, this, ImageScaleBarUnits));
-    parameter->setGetterCallback(SIMPL_BIND_GETTER(DetectEllipsoids, this, ImageScaleBarUnits));
-
-    QVector<QString> choices;
-    choices.push_back("mm");
-    choices.push_back("microns");
-    parameter->setChoices(choices);
-    parameter->setCategory(FilterParameter::Parameter);
-    parameters.push_back(parameter);
-  }
+  parameters.push_back(SIMPL_NEW_INTEGER_FP("Length of Image Scale Bar", ImageScaleBarLength, FilterParameter::Parameter, DetectEllipsoids));
 
   {
     DataArraySelectionFilterParameter::RequirementType req =
@@ -165,9 +150,9 @@ void DetectEllipsoids::setupFilterParameters()
   }
 
   {
-    DataArraySelectionFilterParameter::RequirementType req =
-        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Bool, 1, AttributeMatrix::Type::CellFeature, IGeometry::Type::Image);
-    parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Active", ActiveArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
+    AttributeMatrixSelectionFilterParameter::RequirementType req =
+        AttributeMatrixSelectionFilterParameter::CreateRequirement(AttributeMatrix::Type::CellFeature, IGeometry::Type::Image);
+    parameters.push_back(SIMPL_NEW_AM_SELECTION_FP("Feature Attribute Matrix", FeatureAttributeMatrixPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
   {
@@ -208,20 +193,19 @@ void DetectEllipsoids::dataCheck()
   setErrorCondition(0);
 
   getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType,AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
-  getDataContainerArray()->getPrereqArrayFromPath<BoolArrayType,AbstractFilter>(this, m_ActiveArrayPath, QVector<size_t>(1, 1));
 
     m_DetectedEllipsoidsFeatureIdsPtr = getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType,AbstractFilter,int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
 
+  DataContainer::Pointer ellipseDC = getDataContainerArray()->getPrereqDataContainer<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
+  if (getErrorCondition() < 0) { return; }
+
   int err = 0;
-  AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_ActiveArrayPath, err);
+  AttributeMatrix::Pointer featureAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_FeatureAttributeMatrixPath, err);
   if (getErrorCondition() < 0) { return; }
 
-  m_TotalNumberOfFeatures = activeAM->getNumberOfTuples();
+  m_TotalNumberOfFeatures = featureAM->getNumberOfTuples();
 
-  DataContainer::Pointer dc = getDataContainerArray()->getPrereqDataContainer<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
-  if (getErrorCondition() < 0) { return; }
-
-  m_EllipseFeatureAttributeMatrixPtr = dc->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(), QVector<size_t>(1, m_TotalNumberOfFeatures+1), AttributeMatrix::Type::CellFeature);
+  m_EllipseFeatureAttributeMatrixPtr = ellipseDC->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(), QVector<size_t>(1, m_TotalNumberOfFeatures+1), AttributeMatrix::Type::CellFeature);
 
   DataArrayPath tmp = m_EllipseFeatureAttributeMatrixPath;
   tmp.setDataArrayName(m_CenterCoordinatesArrayName);
@@ -272,7 +256,7 @@ void DetectEllipsoids::execute()
     size_t numComps = 6;
     QVector<size_t> cDims(1, numComps);
     int err = 0;
-    AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_ActiveArrayPath, err);
+    AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_FeatureAttributeMatrixPath, err);
 
     // Create corners array, which stores pixel coordinates for the top-left and bottom-right coordinates of each feature object
     UInt32ArrayType::Pointer corners = UInt32ArrayType::CreateArray(activeAM->getTupleDimensions(), cDims, "Corners of Feature");

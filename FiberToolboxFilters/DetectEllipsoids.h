@@ -76,6 +76,9 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(DataArrayPath, DetectedEllipsoidsFeatureIdsArrayPath)
     Q_PROPERTY(DataArrayPath DetectedEllipsoidsFeatureIdsArrayPath READ getDetectedEllipsoidsFeatureIdsArrayPath WRITE setDetectedEllipsoidsFeatureIdsArrayPath)
 
+    SIMPL_FILTER_PARAMETER(DataArrayPath, FeatureAttributeMatrixPath)
+    Q_PROPERTY(DataArrayPath FeatureAttributeMatrixPath READ getFeatureAttributeMatrixPath WRITE setFeatureAttributeMatrixPath)
+
     SIMPL_FILTER_PARAMETER(DataArrayPath, EllipseFeatureAttributeMatrixPath)
     Q_PROPERTY(DataArrayPath EllipseFeatureAttributeMatrixPath READ getEllipseFeatureAttributeMatrixPath WRITE setEllipseFeatureAttributeMatrixPath)
 
@@ -91,9 +94,6 @@ class DetectEllipsoids : public AbstractFilter
     SIMPL_FILTER_PARAMETER(QString, RotationalAnglesArrayName)
     Q_PROPERTY(QString RotationalAnglesArrayName READ getRotationalAnglesArrayName WRITE setRotationalAnglesArrayName)
 
-    SIMPL_FILTER_PARAMETER(DataArrayPath, ActiveArrayPath)
-    Q_PROPERTY(DataArrayPath ActiveArrayPath READ getActiveArrayPath WRITE setActiveArrayPath)
-
     SIMPL_FILTER_PARAMETER(int, MinFiberAxisLength)
     Q_PROPERTY(int MinFiberAxisLength READ getMinFiberAxisLength WRITE setMinFiberAxisLength)
 
@@ -108,9 +108,6 @@ class DetectEllipsoids : public AbstractFilter
 
     SIMPL_FILTER_PARAMETER(int, ImageScaleBarLength)
     Q_PROPERTY(int ImageScaleBarLength READ getImageScaleBarLength WRITE setImageScaleBarLength)
-
-    SIMPL_FILTER_PARAMETER(int, ImageScaleBarUnits)
-    Q_PROPERTY(int ImageScaleBarUnits READ getImageScaleBarUnits WRITE setImageScaleBarUnits)
 
     SIMPL_FILTER_PARAMETER(size_t, Ellipse_Count)
 

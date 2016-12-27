@@ -81,11 +81,6 @@
         "PhaseNumber": 0
     },
     "5": {
-        "ActiveArrayPath": {
-            "Attribute Matrix Name": "CellFeatureData",
-            "Data Array Name": "Active",
-            "Data Container Name": "ImageDataContainer"
-        },
         "CenterCoordinatesArrayName": "EllipsoidsCenterCoords",
         "DetectedEllipsoidsFeatureIdsArrayPath": {
             "Attribute Matrix Name": "CellData",
@@ -94,6 +89,11 @@
         },
         "EllipseFeatureAttributeMatrixPath": {
             "Attribute Matrix Name": "EllipsoidFeatureData",
+            "Data Array Name": "",
+            "Data Container Name": "ImageDataContainer"
+        },
+        "FeatureAttributeMatrixPath": {
+            "Attribute Matrix Name": "CellFeatureData",
             "Data Array Name": "",
             "Data Container Name": "ImageDataContainer"
         },
@@ -106,7 +106,6 @@
         "Filter_Name": "DetectEllipsoids",
         "HoughTransformThreshold": 0.5,
         "ImageScaleBarLength": 100,
-        "ImageScaleBarUnits": 1,
         "MajorAxisLengthArrayName": "EllipsoidsMajorAxisLength",
         "MaxFiberAxisLength": 18,
         "MinAspectRatio": 0.40000000596046448,
