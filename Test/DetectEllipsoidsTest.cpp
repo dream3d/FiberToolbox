@@ -136,93 +136,66 @@ class DetectEllipsoidsTest
     pipeline->execute();
 
     // Compare output with exemplary output
-    int valueIndex = 1;
-    if (exemplaryOutFile.open(QFile::ReadOnly))
+    if (exemplaryOutFile.open(QFile::ReadOnly) == false || testOutFile.open(QFile::ReadOnly) == false)
     {
-      if (testOutFile.open(QFile::ReadOnly))
-      {
-        QTextStream testIn(&testOutFile);
-        QTextStream exemplaryIn(&exemplaryOutFile);
+      // Bail
+      DREAM3D_REQUIRE_EQUAL(0, 1);
+    }
 
-        while (!testIn.atEnd() && !exemplaryIn.atEnd())
-        {
-          QString exemplaryLine = exemplaryIn.readLine();
-          QString testLine = testIn.readLine();
+    QTextStream testIn(&testOutFile);
+    QTextStream exemplaryIn(&exemplaryOutFile);
 
-          QTextStream::Status testStatus = testIn.status();
-          QTextStream::Status exemplaryStatus = exemplaryIn.status();
-          if (testStatus != QTextStream::Ok || exemplaryStatus != QTextStream::Ok)
-          {
-            // Bail
-            DREAM3D_REQUIRE_EQUAL(0, 1);
-          }
+    while (!testIn.atEnd() && !exemplaryIn.atEnd())
+    {
+      QString exemplaryLine = exemplaryIn.readLine();
+      QString testLine = testIn.readLine();
 
-          QStringList exemplaryStrList = exemplaryLine.split('\t');
-          QStringList testStrList = testLine.split('\t');
-
-          for (int i = 0; i < exemplaryStrList.size(); i++)
-          {
-            QString exemplaryStr = exemplaryStrList[i];
-            QString testStr = testStrList[i];
-
-            bool ok = true;
-            int exemplaryInt = exemplaryStr.toInt(&ok);
-            if (ok == false)
-            {
-              // Bail
-              DREAM3D_REQUIRE_EQUAL(0, 1);
-            }
-
-            int testInt = testStr.toInt(&ok);
-            if (ok == false)
-            {
-              // Bail
-              DREAM3D_REQUIRE_EQUAL(0, 1);
-            }
-
-            if (exemplaryInt == 0)
-            {
-              if (testInt != exemplaryInt)
-              {
-                int row = valueIndex;
-                int col = i + 1;
-
-                std::cout << "\nRow: " << row << "\nColumn: " << col << "\nExemplaryInt: " << exemplaryInt << "\nTestInt: " << testInt << std::endl;
-              }
-              DREAM3D_REQUIRE_EQUAL(exemplaryInt, testInt);
-            }
-            else if (exemplaryInt > 0)
-            {
-              if (testInt <= 0)
-              {
-                int row = valueIndex;
-                int col = i + 1;
-
-                std::cout << "\nRow: " << row << "\nColumn: " << col << "\nExemplaryInt: " << exemplaryInt << "\nTestInt: " << testInt << std::endl;
-              }
-              DREAM3D_REQUIRE(exemplaryInt > 0);
-              DREAM3D_REQUIRE(testInt > 0);
-            }
-            else
-            {
-              // Bail
-              DREAM3D_REQUIRE_EQUAL(0, 1);
-            }
-          }
-
-          valueIndex++;
-        }
-      }
-      else
+      QTextStream::Status testStatus = testIn.status();
+      QTextStream::Status exemplaryStatus = exemplaryIn.status();
+      if (testStatus != QTextStream::Ok || exemplaryStatus != QTextStream::Ok)
       {
         // Bail
         DREAM3D_REQUIRE_EQUAL(0, 1);
       }
-    }
-    else
-    {
-      // Bail
-      DREAM3D_REQUIRE_EQUAL(0, 1);
+
+      QStringList exemplaryStrList = exemplaryLine.split('\t');
+      QStringList testStrList = testLine.split('\t');
+
+      for (int i = 0; i < exemplaryStrList.size(); i++)
+      {
+        QString exemplaryStr = exemplaryStrList[i];
+        QString testStr = testStrList[i];
+
+        bool ok = true;
+        int exemplaryInt = exemplaryStr.toInt(&ok);
+        if (ok == false)
+        {
+          // Bail
+          DREAM3D_REQUIRE_EQUAL(0, 1);
+        }
+
+        int testInt = testStr.toInt(&ok);
+        if (ok == false)
+        {
+          // Bail
+          DREAM3D_REQUIRE_EQUAL(0, 1);
+        }
+
+        if (exemplaryInt == 0)
+        {
+          DREAM3D_REQUIRE_EQUAL(exemplaryInt, testInt);
+        }
+        else if (exemplaryInt > 0)
+        {
+          DREAM3D_REQUIRE(exemplaryInt > 0);
+          DREAM3D_REQUIRE(testInt > 0);
+        }
+        else
+        {
+          // Bail
+          DREAM3D_REQUIRE_EQUAL(0, 1);
+        }
+      }
     }
 
     return EXIT_SUCCESS;
