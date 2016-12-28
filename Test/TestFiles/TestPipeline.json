@@ -114,7 +114,7 @@
         "RotationalAnglesArrayName": "EllipsoidsRotationalAngles"
     },
     "6": {
-        "Delimeter": 4,
+        "Delimiter": 4,
         "FileExtension": ".txt",
         "Filter_Human_Label": "Write ASCII Data",
         "Filter_Name": "WriteASCIIData",
