@@ -55,7 +55,7 @@ typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
 class DetectEllipsoidsImpl
 {
 public:
-  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM);
+  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM);
 
   virtual ~DetectEllipsoidsImpl();
 
@@ -322,8 +322,6 @@ private:
   int*                            m_CellFeatureIdsPtr;
   QVector<size_t>                 m_CellFeatureIdsDims;
   UInt32ArrayType::Pointer        m_Corners;
-  int32_t                         m_FeatureIdStart;
-  int32_t                         m_FeatureIdEnd;
   DE_ComplexDoubleVector          m_ConvCoords_X;
   DE_ComplexDoubleVector          m_ConvCoords_Y;
   DE_ComplexDoubleVector          m_ConvCoords_Z;

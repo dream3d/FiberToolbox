@@ -98,9 +98,11 @@ DetectEllipsoids::DetectEllipsoids() :
   m_ImageScaleBarLength(100),
   m_Ellipse_Count(0),
   m_MaxFeatureId(0),
+  m_NextExecutedFeatureId(1),
   m_TotalNumberOfFeatures(0),
   m_FeaturesCompleted(0),
   m_MaxFeatureIdSem(1),
+  m_NextExecutedFeatureIdSem(1),
   m_FeaturesCompletedSem(1)
 { 
   initialize();
@@ -123,6 +125,7 @@ void DetectEllipsoids::initialize()
   setCancel(false);
 
   m_TotalNumberOfFeatures = 0;
+  m_NextExecutedFeatureId = 1;
   m_FeaturesCompleted = 0;
   m_MaxFeatureId = 0;
 
@@ -387,19 +390,10 @@ void DetectEllipsoids::execute()
     {
       tbb::task_group* g = new tbb::task_group;
       int threads = init.default_num_threads();
-      unsigned int numOfTasks = ((m_TotalNumberOfFeatures) / threads) + 1;
 
-      int32_t start = 1;
-      int32_t end = 0 + numOfTasks;
       for (int i=0; i<threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, start, end, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr));
-        start = end;
-        end = end + numOfTasks;
-        if(end >= m_TotalNumberOfFeatures)
-        {
-          end = m_TotalNumberOfFeatures;
-        }
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr));
       }
 
       g->wait();
@@ -408,7 +402,7 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, 1, m_TotalNumberOfFeatures, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr);
       impl();
     }
 
@@ -1316,13 +1310,32 @@ void DetectEllipsoids::ind2sub(QVector<size_t> tDims, size_t index, size_t &x, s
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-size_t DetectEllipsoids::getUniqueFeatureId()
+int32_t DetectEllipsoids::getUniqueFeatureId()
 {
   m_MaxFeatureIdSem.acquire();
   m_MaxFeatureId++;
-  size_t id = m_MaxFeatureId;
+  int32_t id = m_MaxFeatureId;
   m_MaxFeatureIdSem.release();
   return id;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+size_t DetectEllipsoids::getNextFeatureId()
+{
+  m_NextExecutedFeatureIdSem.acquire();
+  int32_t featureId = m_NextExecutedFeatureId;
+  if (m_NextExecutedFeatureId >= m_TotalNumberOfFeatures)
+  {
+    featureId = -1;
+  }
+  else
+  {
+    m_NextExecutedFeatureId++;
+  }
+  m_NextExecutedFeatureIdSem.release();
+  return featureId;
 }
 
 // -----------------------------------------------------------------------------

@@ -40,13 +40,11 @@
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, int32_t featureIdStart, int32_t featureIdEnd, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM) :
+DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM) :
   m_Filter(filter),
   m_CellFeatureIdsPtr(cellFeatureIdsPtr),
   m_CellFeatureIdsDims(cellFeatureIdsDims),
   m_Corners(corners),
-  m_FeatureIdStart(featureIdStart),
-  m_FeatureIdEnd(featureIdEnd),
   m_ConvCoords_X(convCoords_X),
   m_ConvCoords_Y(convCoords_Y),
   m_ConvCoords_Z(convCoords_Z),
@@ -117,7 +115,8 @@ void DetectEllipsoidsImpl::operator()() const
   }
 
   // Run the ellipse detection algorithm on each object
-  for(size_t featureId = m_FeatureIdStart; featureId < m_FeatureIdEnd; featureId++)
+  int32_t featureId = m_Filter->getNextFeatureId();
+  while (featureId > 0)
   {
     size_t topL_X = m_Corners->getComponent(featureId, 0);
     size_t topL_Y = m_Corners->getComponent(featureId, 1);
@@ -423,6 +422,8 @@ void DetectEllipsoidsImpl::operator()() const
 
     // Notify the user interface that the feature is completed
     m_Filter->notifyFeatureCompleted();
+
+    featureId = m_Filter->getNextFeatureId();
   }
 }
 
