@@ -256,10 +256,10 @@ void DetectEllipsoids::execute()
     size_t numComps = 6;
     QVector<size_t> cDims(1, numComps);
     int err = 0;
-    AttributeMatrix::Pointer activeAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_FeatureAttributeMatrixPath, err);
+    AttributeMatrix::Pointer featureAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_FeatureAttributeMatrixPath, err);
 
     // Create corners array, which stores pixel coordinates for the top-left and bottom-right coordinates of each feature object
-    UInt32ArrayType::Pointer corners = UInt32ArrayType::CreateArray(activeAM->getTupleDimensions(), cDims, "Corners of Feature");
+    UInt32ArrayType::Pointer corners = UInt32ArrayType::CreateArray(featureAM->getTupleDimensions(), cDims, "Corners of Feature");
     for (int i=0; i<corners->getNumberOfTuples(); i++)
     {
       corners->setComponent(i, 0, std::numeric_limits<uint32_t>::max());
@@ -286,6 +286,15 @@ void DetectEllipsoids::execute()
           index =  sub2ind(imageDims, x, y, z); // Index into cellFeatureIds array
 
           featureId = cellFeatureIdsPtr[index];
+          if (featureId == 0) { continue; }
+
+          if (featureId >= corners->getNumberOfTuples())
+          {
+            setErrorCondition(-31000);
+            QString ss = QObject::tr("The feature attribute matrix '%1' has a smaller tuple count than the maximum feature id in '%2'").arg(featureAM->getName()).arg(cellFeatureIds->getName());
+            notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
+            return;
+          }
 
           uint32_t* featureCorner = corners->getPointer(featureId * numComps);
 
@@ -330,13 +339,12 @@ void DetectEllipsoids::execute()
 
     // Execute the Orientation Filter and Hough Circle Filter
     QVector<size_t> orient_tDims;
-    QVector<size_t> hc_tDims;
     DoubleArrayType::Pointer orientArray = orientationFilter(axis_min, axis_max, orient_tDims);
-    DE_ComplexDoubleVector houghCircleVector = houghCircleFilter(axis_min, axis_max, hc_tDims);
+    DE_ComplexDoubleVector houghCircleVector = houghCircleFilter(axis_min, axis_max);
 
     if (orientArray->getNumberOfTuples() != houghCircleVector.size())
     {
-      setErrorCondition(-31000);
+      setErrorCondition(-31001);
       QString ss = QObject::tr("There was an internal error.  Please ask the DREAM.3D developers for more information.");
       notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
     }
@@ -347,16 +355,21 @@ void DetectEllipsoids::execute()
     DE_ComplexDoubleVector convCoords_Z;
     convolutionFilter(orientArray, houghCircleVector, convCoords_X, convCoords_Y, convCoords_Z);
 
+    // Reverse these kernels now so that we don't have to reverse them during every single convolution run on each feature id
+    std::reverse(std::begin(convCoords_X), std::end(convCoords_X));
+    std::reverse(std::begin(convCoords_Y), std::end(convCoords_Y));
+    std::reverse(std::begin(convCoords_Z), std::end(convCoords_Z));
+
     // Create offset array to use for convolutions
     Int32ArrayType::Pointer convOffsetArray = createOffsetArray(orient_tDims);
 
     // Execute the smoothing filter
     int n_size = 3;
-    std::vector<double> smoothFil = smoothingFilter(n_size);
     QVector<size_t> smooth_tDims;
-    smooth_tDims.push_back(2*n_size+1);
-    smooth_tDims.push_back(2*n_size+1);
-    smooth_tDims.push_back(1);
+    std::vector<double> smoothFil = smoothingFilter(n_size, smooth_tDims);
+
+    // Reverse this kernel now so that we don't have to reverse it during every single convolution run on each feature id
+    std::reverse(std::begin(smoothFil), std::end(smoothFil));
 
     // Create offset array to use for smoothing convolutions
     Int32ArrayType::Pointer smoothOffsetArray = createOffsetArray(smooth_tDims);
@@ -418,8 +431,6 @@ void DetectEllipsoids::execute()
       {
         continue;
       }
-
-      //ellipseDetectionFeatureIds = fillEllipse(ellipseDetectionFeatureIds, imageDims, cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, featureId);
 
       size_t count = 1;
       DoubleArrayType::Pointer ellipseCoords = plotEllipsev2(cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, count);
@@ -498,13 +509,13 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, int maxAxisLength, QVector<size_t> &tDims)
+DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, int maxAxisLength)
 {
   size_t xDim = 2*maxAxisLength+1;
   size_t yDim = 2*maxAxisLength+1;
   size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
   size_t totalElements = xDim * yDim * zDim;
-  tDims.clear();
+  QVector<size_t> tDims;
   tDims.push_back(xDim);
   tDims.push_back(yDim);
   tDims.push_back(zDim);
@@ -575,12 +586,12 @@ void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFil
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-std::vector<double> DetectEllipsoids::smoothingFilter(int n_size)
+std::vector<double> DetectEllipsoids::smoothingFilter(int n_size, QVector<size_t> &tDims)
 {
   int xDim = 2*n_size+1;
   int yDim = 2*n_size+1;
   int zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
-  QVector<size_t> tDims;
+  tDims.clear();
   tDims.push_back(xDim);
   tDims.push_back(yDim);
   tDims.push_back(zDim);

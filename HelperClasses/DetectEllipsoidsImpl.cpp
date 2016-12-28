@@ -80,37 +80,37 @@ DetectEllipsoidsImpl::~DetectEllipsoidsImpl()
 void DetectEllipsoidsImpl::operator()() const
 {
   // Initialize temporary arrays for candidate ellipse and accumulation counter
-  DoubleArrayType::Pointer cenx_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "cenx_can"); // x-coordinate of ellipse
+  DoubleArrayType::Pointer cenx_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "cenx_can"); // x-coordinate of ellipse
   for (int i=0; i < cenx_can->getNumberOfTuples(); i++)
   {
     cenx_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
-  DoubleArrayType::Pointer ceny_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "ceny_can"); // y-coordinate of ellipse
+  DoubleArrayType::Pointer ceny_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "ceny_can"); // y-coordinate of ellipse
   for (int i=0; i < ceny_can->getNumberOfTuples(); i++)
   {
     ceny_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
-  DoubleArrayType::Pointer maj_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "maj_can"); // major semi-axis
+  DoubleArrayType::Pointer maj_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "maj_can"); // major semi-axis
   for (int i=0; i < maj_can->getNumberOfTuples(); i++)
   {
     maj_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
-  DoubleArrayType::Pointer min_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "min_can"); // minor semi-axis
+  DoubleArrayType::Pointer min_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "min_can"); // minor semi-axis
   for (int i=0; i < min_can->getNumberOfTuples(); i++)
   {
     min_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
-  DoubleArrayType::Pointer rot_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "rot_can"); // Counter clockwise rotation from x-axis
+  DoubleArrayType::Pointer rot_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "rot_can"); // Counter clockwise rotation from x-axis
   for (int i=0; i < rot_can->getNumberOfTuples(); i++)
   {
     rot_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
   }
 
-  DoubleArrayType::Pointer accum_can = DoubleArrayType::CreateArray(300, QVector<size_t>(1, 1), "accum_can"); // Accumulation matrix
+  DoubleArrayType::Pointer accum_can = DoubleArrayType::CreateArray(10, QVector<size_t>(1, 1), "accum_can"); // Accumulation matrix
   for (int i=0; i < accum_can->getNumberOfTuples(); i++)
   {
     accum_can->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
@@ -121,20 +121,20 @@ void DetectEllipsoidsImpl::operator()() const
   {
     size_t topL_X = m_Corners->getComponent(featureId, 0);
     size_t topL_Y = m_Corners->getComponent(featureId, 1);
-    //size_t topL_Z = m_Corners->getComponent(featureId, 2);
+    //size_t topL_Z = m_Corners->getComponent(featureId, 2);  // 3DIM: This can be changed later to handle 3-dimensions
     size_t bottomR_X = m_Corners->getComponent(featureId, 3);
     size_t bottomR_Y = m_Corners->getComponent(featureId, 4);
-    //size_t bottomR_Z = m_Corners->getComponent(featureId, 5);
+    //size_t bottomR_Z = m_Corners->getComponent(featureId, 5); // 3DIM: This can be changed later to handle 3-dimensions
 
     // Calculate the object's dimensions with a 1-pixel border around it
     size_t paddedObj_xDim = (bottomR_X+1) - (topL_X-1) + 1;
     size_t paddedObj_yDim = (bottomR_Y+1) - (topL_Y-1) + 1;
-    //size_t paddedObj_zDim = (bottomR_Z+1) - (topL_Z-1) + 1;
+    //size_t paddedObj_zDim = (bottomR_Z+1) - (topL_Z-1) + 1; // 3DIM: This can be changed later to handle 3-dimensions
 
     QVector<size_t> paddedObj_tDims;
     paddedObj_tDims.push_back(paddedObj_xDim);
     paddedObj_tDims.push_back(paddedObj_yDim);
-    //image_tDims.push_back(paddedObj_zDim);
+    //image_tDims.push_back(paddedObj_zDim);  // 3DIM: This can be changed later to handle 3-dimensions
 
     // Copy the feature id object into its own flattened 2D array called featureObjArray
     QVector<size_t> cDims(1, 1);
@@ -142,7 +142,7 @@ void DetectEllipsoidsImpl::operator()() const
     featureObjArray->initializeWithZeros();
 
     size_t z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
-//    for (size_t z = topL_Z; z <= bottomR_Z; z++)
+//    for (size_t z = topL_Z; z <= bottomR_Z; z++)  // 3DIM: This can be changed later to handle 3-dimensions
 //    {
       for (size_t y = topL_Y; y <= bottomR_Y; y++)
       {
@@ -150,10 +150,10 @@ void DetectEllipsoidsImpl::operator()() const
         {
           size_t objX = x - topL_X;
           size_t objY = y - topL_Y;
-          //size_t objZ = z - topL_Z;
-          //size_t objIndex = (paddedObj_yDim * paddedObj_xDim * objZ) + (paddedObj_xDim * (objY+1)) + (objX+1);
+          //size_t objZ = z - topL_Z; // 3DIM: This can be changed later to handle 3-dimensions
+          //size_t objIndex = (paddedObj_yDim * paddedObj_xDim * objZ) + (paddedObj_xDim * (objY+1)) + (objX+1);  // 3DIM: This can be changed later to handle 3-dimensions
           size_t objIndex =  m_Filter->sub2ind(paddedObj_tDims, objX + 1, objY + 1, z);
-          //size_t imageIndex = (m_CellFeatureIdsDims[1] * m_CellFeatureIdsDims[0] * z) + (m_CellFeatureIdsDims[0] * y) + x;
+          //size_t imageIndex = (m_CellFeatureIdsDims[1] * m_CellFeatureIdsDims[0] * z) + (m_CellFeatureIdsDims[0] * y) + x;  // 3DIM: This can be changed later to handle 3-dimensions
           size_t imageIndex =  m_Filter->sub2ind(m_CellFeatureIdsDims, x, y, z);
           double featureValue = m_CellFeatureIdsPtr[imageIndex];
 
@@ -188,8 +188,6 @@ void DetectEllipsoidsImpl::operator()() const
 
       DoubleArrayType::Pointer gradX = grad.getGradX();
       DoubleArrayType::Pointer gradY = grad.getGradY();
-
-      //std::cout << "Feature Id: " << i << "\tNumTuples = " << gradX->getNumberOfTuples() << std::endl;
 
       // Convolute Gradient of object with convolution kernel
       DE_ComplexDoubleVector gradX_conv = convoluteImage(gradX, m_ConvCoords_X, m_ConvOffsetArray, paddedObj_tDims);
@@ -914,6 +912,16 @@ void DetectEllipsoidsImpl::analyzeEdgePair(SizeTArrayType::Pointer obj_edge_pair
         if (overlap->getNumberOfTuples() > tol_pix)
         {
           // Accept point as a new candidate
+          if (can_num >= cenx_can->getNumberOfTuples())
+          {
+            cenx_can->resize(cenx_can->getNumberOfTuples() + 5);
+            ceny_can->resize(cenx_can->getNumberOfTuples() + 5);
+            maj_can->resize(cenx_can->getNumberOfTuples() + 5);
+            min_can->resize(cenx_can->getNumberOfTuples() + 5);
+            rot_can->resize(cenx_can->getNumberOfTuples() + 5);
+            accum_can->resize(cenx_can->getNumberOfTuples() + 5);
+          }
+
           cenx_can->setComponent(can_num, 0, std::round(x0)); //x - coordinate of ellipse
           ceny_can->setComponent(can_num, 0, std::round(y0)); //y - coordinate of ellipse
           maj_can->setComponent(can_num, 0, std::round(a)); //major semi - axis

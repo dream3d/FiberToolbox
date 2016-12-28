@@ -238,7 +238,7 @@ class DetectEllipsoids : public AbstractFilter
      * @brief houghCircleFilter
      * @return
      */
-    DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength, QVector<size_t> &tDims);
+    DE_ComplexDoubleVector houghCircleFilter(int minAxisLength, int maxAxisLength);
 
     /**
      * @brief convolutionFilter Multiplies the orientationFilter and houghCircleFilter arrays element-by-element.
@@ -263,7 +263,7 @@ class DetectEllipsoids : public AbstractFilter
      * @param n_size
      * @return
      */
-    std::vector<double> smoothingFilter(int n_size);
+    std::vector<double> smoothingFilter(int n_size, QVector<size_t> &tDims);
 
     /**
      * @brief plotEllipsev2

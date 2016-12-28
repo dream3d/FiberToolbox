@@ -133,7 +133,11 @@ class DetectEllipsoidsTest
     obs.connect(detectEllipsoidsFilter.get(), SIGNAL(filterGeneratedMessage(const PipelineMessage&)),
                 &obs, SLOT(processPipelineMessage(const PipelineMessage&)));
 
+    pipeline->preflightPipeline();
+    DREAM3D_REQUIRE_EQUAL(pipeline->getErrorCondition(), 0);
+
     pipeline->execute();
+    DREAM3D_REQUIRE_EQUAL(pipeline->getErrorCondition(), 0);
 
     // Compare output with exemplary output
     if (exemplaryOutFile.open(QFile::ReadOnly) == false || testOutFile.open(QFile::ReadOnly) == false)

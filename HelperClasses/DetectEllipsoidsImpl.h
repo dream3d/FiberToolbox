@@ -143,9 +143,6 @@ public:
   {
     std::vector<T> convArray;
 
-    std::vector<T> reverse_kernel = kernel;
-    std::reverse(std::begin(reverse_kernel), std::end(reverse_kernel));
-
     int* offsetArrayPtr = offsetArray->getPointer(0);
     double* imageArray = image->getPointer(0);
     int offsetArrayNumOfComps = offsetArray->getNumberOfComponents();
@@ -155,7 +152,7 @@ public:
     size_t yDim = image_tDims[1];
     size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
     int gradNumTuples = image->getNumberOfTuples();
-    int reverseKernelCount = reverse_kernel.size();
+    int reverseKernelCount = kernel.size();
     for (int i=0; i<gradNumTuples; i++)
     {
       size_t imageCurrentX = 0, imageCurrentY = 0, imageCurrentZ = 0;
@@ -181,7 +178,7 @@ public:
                   {
                     int gradIndex = (yDim * xDim * currCoord_Z) + (xDim * currCoord_Y) + currCoord_X;
 
-                    T kernelVal = reverse_kernel[j];
+                    T kernelVal = kernel[j];
                     double imageVal = imageArray[gradIndex];
                     T value = kernelVal * imageVal;
                     accumulator += value;
