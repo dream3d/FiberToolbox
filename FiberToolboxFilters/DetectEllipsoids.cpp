@@ -48,18 +48,18 @@
 #include <tbb/tick_count.h>
 #endif
 
-#include "SIMPLib/Math/SIMPLibMath.h"
 #include "SIMPLib/Common/Constants.h"
-#include "SIMPLib/FilterParameters/ChoiceFilterParameter.h"
-#include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
-#include "SIMPLib/FilterParameters/IntFilterParameter.h"
-#include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
-#include "SIMPLib/FilterParameters/StringFilterParameter.h"
+#include "SIMPLib/DataArrays/StringDataArray.hpp"
 #include "SIMPLib/FilterParameters/AttributeMatrixCreationFilterParameter.h"
 #include "SIMPLib/FilterParameters/AttributeMatrixSelectionFilterParameter.h"
+#include "SIMPLib/FilterParameters/ChoiceFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
+#include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
+#include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
+#include "SIMPLib/FilterParameters/IntFilterParameter.h"
+#include "SIMPLib/FilterParameters/StringFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
-#include "SIMPLib/DataArrays/StringDataArray.hpp"
+#include "SIMPLib/Math/SIMPLibMath.h"
 
 #include "FiberToolbox/FiberToolboxConstants.h"
 #include "FiberToolbox/FiberToolboxVersion.h"
@@ -71,40 +71,40 @@
 // Include the MOC generated file for this class
 #include "moc_DetectEllipsoids.cpp"
 
-#define STORE_PIXEL_VALUES(array, count)\
-  array->setComponent(count, 0, xc+x);\
-  array->setComponent(count, 1, yc+y);\
-  count++;\
-  array->setComponent(count, 0, xc-x);\
-  array->setComponent(count, 1, yc-y);\
-  count++;\
+#define STORE_PIXEL_VALUES(array, count)                                                                                                                                                               \
+  array->setComponent(count, 0, xc + x);                                                                                                                                                               \
+  array->setComponent(count, 1, yc + y);                                                                                                                                                               \
+  count++;                                                                                                                                                                                             \
+  array->setComponent(count, 0, xc - x);                                                                                                                                                               \
+  array->setComponent(count, 1, yc - y);                                                                                                                                                               \
+  count++;
 
 double DetectEllipsoids::m_img_scale_length = 588.0;
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoids::DetectEllipsoids() :
-  AbstractFilter(),
-  m_EllipseFeatureAttributeMatrixPath("", "", ""),
-  m_CenterCoordinatesArrayName("EllipsoidsCenterCoords"),
-  m_MajorAxisLengthArrayName("EllipsoidsMajorAxisLength"),
-  m_MinorAxisLengthArrayName("EllipsoidsMinorAxisLength"),
-  m_RotationalAnglesArrayName("EllipsoidsRotationalAngles"),
-  m_MinFiberAxisLength(4),
-  m_MaxFiberAxisLength(18),
-  m_HoughTransformThreshold(0.5f),
-  m_MinAspectRatio(0.4f),
-  m_ImageScaleBarLength(100),
-  m_Ellipse_Count(0),
-  m_MaxFeatureId(0),
-  m_NextExecutedFeatureId(1),
-  m_TotalNumberOfFeatures(0),
-  m_FeaturesCompleted(0),
-  m_MaxFeatureIdSem(1),
-  m_NextExecutedFeatureIdSem(1),
-  m_FeaturesCompletedSem(1)
-{ 
+DetectEllipsoids::DetectEllipsoids()
+: AbstractFilter()
+, m_EllipseFeatureAttributeMatrixPath("", "", "")
+, m_CenterCoordinatesArrayName("EllipsoidsCenterCoords")
+, m_MajorAxisLengthArrayName("EllipsoidsMajorAxisLength")
+, m_MinorAxisLengthArrayName("EllipsoidsMinorAxisLength")
+, m_RotationalAnglesArrayName("EllipsoidsRotationalAngles")
+, m_MinFiberAxisLength(4)
+, m_MaxFiberAxisLength(18)
+, m_HoughTransformThreshold(0.5f)
+, m_MinAspectRatio(0.4f)
+, m_ImageScaleBarLength(100)
+, m_Ellipse_Count(0)
+, m_MaxFeatureId(0)
+, m_NextExecutedFeatureId(1)
+, m_TotalNumberOfFeatures(0)
+, m_FeaturesCompleted(0)
+, m_MaxFeatureIdSem(1)
+, m_NextExecutedFeatureIdSem(1)
+, m_FeaturesCompletedSem(1)
+{
   initialize();
   setupFilterParameters();
 }
@@ -147,14 +147,12 @@ void DetectEllipsoids::setupFilterParameters()
   parameters.push_back(SIMPL_NEW_INTEGER_FP("Length of Image Scale Bar", ImageScaleBarLength, FilterParameter::Parameter, DetectEllipsoids));
 
   {
-    DataArraySelectionFilterParameter::RequirementType req =
-        DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int32, 1, AttributeMatrix::Type::Cell, IGeometry::Type::Image);
+    DataArraySelectionFilterParameter::RequirementType req = DataArraySelectionFilterParameter::CreateRequirement(SIMPL::TypeNames::Int32, 1, AttributeMatrix::Type::Cell, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_DA_SELECTION_FP("Feature Ids", FeatureIdsArrayPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
   {
-    AttributeMatrixSelectionFilterParameter::RequirementType req =
-        AttributeMatrixSelectionFilterParameter::CreateRequirement(AttributeMatrix::Type::CellFeature, IGeometry::Type::Image);
+    AttributeMatrixSelectionFilterParameter::RequirementType req = AttributeMatrixSelectionFilterParameter::CreateRequirement(AttributeMatrix::Type::CellFeature, IGeometry::Type::Image);
     parameters.push_back(SIMPL_NEW_AM_SELECTION_FP("Feature Attribute Matrix", FeatureAttributeMatrixPath, FilterParameter::RequiredArray, DetectEllipsoids, req));
   }
 
@@ -195,34 +193,44 @@ void DetectEllipsoids::dataCheck()
 {
   setErrorCondition(0);
 
-  getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType,AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
+  getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType, AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
 
-    m_DetectedEllipsoidsFeatureIdsPtr = getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType,AbstractFilter,int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
+  m_DetectedEllipsoidsFeatureIdsPtr =
+      getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType, AbstractFilter, int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
 
   DataContainer::Pointer ellipseDC = getDataContainerArray()->getPrereqDataContainer<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
-  if (getErrorCondition() < 0) { return; }
+  if(getErrorCondition() < 0)
+  {
+    return;
+  }
 
   int err = 0;
   AttributeMatrix::Pointer featureAM = getDataContainerArray()->getPrereqAttributeMatrixFromPath<AbstractFilter>(this, m_FeatureAttributeMatrixPath, err);
-  if (getErrorCondition() < 0) { return; }
+  if(getErrorCondition() < 0)
+  {
+    return;
+  }
 
   m_TotalNumberOfFeatures = featureAM->getNumberOfTuples();
 
-  m_EllipseFeatureAttributeMatrixPtr = ellipseDC->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(), QVector<size_t>(1, m_TotalNumberOfFeatures+1), AttributeMatrix::Type::CellFeature);
+  m_EllipseFeatureAttributeMatrixPtr = ellipseDC->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(),
+                                                                                                 QVector<size_t>(1, m_TotalNumberOfFeatures + 1), AttributeMatrix::Type::CellFeature);
 
   DataArrayPath tmp = m_EllipseFeatureAttributeMatrixPath;
   tmp.setDataArrayName(m_CenterCoordinatesArrayName);
-  m_CenterCoordinatesPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 2));
+  m_CenterCoordinatesPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType, AbstractFilter, double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 2));
 
   tmp.setDataArrayName(m_MajorAxisLengthArrayName);
-  m_MajorAxisLengthArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
+  m_MajorAxisLengthArrayPtr =
+      getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType, AbstractFilter, double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
 
   tmp.setDataArrayName(m_MinorAxisLengthArrayName);
-  m_MinorAxisLengthArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
+  m_MinorAxisLengthArrayPtr =
+      getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType, AbstractFilter, double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
 
   tmp.setDataArrayName(m_RotationalAnglesArrayName);
-  m_RotationalAnglesArrayPtr = getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType,AbstractFilter,double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
-
+  m_RotationalAnglesArrayPtr =
+      getDataContainerArray()->createNonPrereqArrayFromPath<DoubleArrayType, AbstractFilter, double>(this, tmp, std::numeric_limits<double>::quiet_NaN(), QVector<size_t>(1, 1));
 }
 
 // -----------------------------------------------------------------------------
@@ -231,12 +239,12 @@ void DetectEllipsoids::dataCheck()
 void DetectEllipsoids::preflight()
 {
   // These are the REQUIRED lines of CODE to make sure the filter behaves correctly
-  setInPreflight(true); // Set the fact that we are preflighting.
-  emit preflightAboutToExecute(); // Emit this signal so that other widgets can do one file update
+  setInPreflight(true);              // Set the fact that we are preflighting.
+  emit preflightAboutToExecute();    // Emit this signal so that other widgets can do one file update
   emit updateFilterParameters(this); // Emit this signal to have the widgets push their values down to the filter
-  dataCheck(); // Run our DataCheck to make sure everthing is setup correctly
-  emit preflightExecuted(); // We are done preflighting this filter
-  setInPreflight(false); // Inform the system this filter is NOT in preflight mode anymore.
+  dataCheck();                       // Run our DataCheck to make sure everthing is setup correctly
+  emit preflightExecuted();          // We are done preflighting this filter
+  setInPreflight(false);             // Inform the system this filter is NOT in preflight mode anymore.
 }
 
 // -----------------------------------------------------------------------------
@@ -246,14 +254,20 @@ void DetectEllipsoids::execute()
 {
   initialize();
   dataCheck();
-  if(getErrorCondition() < 0) { return; }
+  if(getErrorCondition() < 0)
+  {
+    return;
+  }
 
   /* Finding the top-left and bottom-right corners of each featureId  */
-  Int32ArrayType::Pointer cellFeatureIds = getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType,AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
-  if (getErrorCondition() < 0) { return; }
+  Int32ArrayType::Pointer cellFeatureIds = getDataContainerArray()->getPrereqArrayFromPath<Int32ArrayType, AbstractFilter>(this, m_FeatureIdsArrayPath, QVector<size_t>(1, 1));
+  if(getErrorCondition() < 0)
+  {
+    return;
+  }
 
   int* cellFeatureIdsPtr = cellFeatureIds->getPointer(0);
-  if (cellFeatureIdsPtr != nullptr)
+  if(cellFeatureIdsPtr != nullptr)
   {
     int featureId = 0;
     size_t numComps = 6;
@@ -263,7 +277,7 @@ void DetectEllipsoids::execute()
 
     // Create corners array, which stores pixel coordinates for the top-left and bottom-right coordinates of each feature object
     UInt32ArrayType::Pointer corners = UInt32ArrayType::CreateArray(featureAM->getTupleDimensions(), cDims, "Corners of Feature");
-    for (int i=0; i<corners->getNumberOfTuples(); i++)
+    for(int i = 0; i < corners->getNumberOfTuples(); i++)
     {
       corners->setComponent(i, 0, std::numeric_limits<uint32_t>::max());
       corners->setComponent(i, 1, std::numeric_limits<uint32_t>::max());
@@ -286,12 +300,15 @@ void DetectEllipsoids::execute()
       {
         for(size_t x = 0; x < xDim; x++)
         {
-          index =  sub2ind(imageDims, x, y, z); // Index into cellFeatureIds array
+          index = sub2ind(imageDims, x, y, z); // Index into cellFeatureIds array
 
           featureId = cellFeatureIdsPtr[index];
-          if (featureId == 0) { continue; }
+          if(featureId == 0)
+          {
+            continue;
+          }
 
-          if (featureId >= corners->getNumberOfTuples())
+          if(featureId >= corners->getNumberOfTuples())
           {
             setErrorCondition(-31000);
             QString ss = QObject::tr("The feature attribute matrix '%1' has a smaller tuple count than the maximum feature id in '%2'").arg(featureAM->getName()).arg(cellFeatureIds->getName());
@@ -337,15 +354,15 @@ void DetectEllipsoids::execute()
     }
 
     double img_pix_length = m_ImageScaleBarLength / m_img_scale_length;
-    double axis_min = std::round( m_MinFiberAxisLength / img_pix_length );
-    double axis_max = std::round( m_MaxFiberAxisLength / img_pix_length );
+    double axis_min = std::round(m_MinFiberAxisLength / img_pix_length);
+    double axis_max = std::round(m_MaxFiberAxisLength / img_pix_length);
 
     // Execute the Orientation Filter and Hough Circle Filter
     QVector<size_t> orient_tDims;
     DoubleArrayType::Pointer orientArray = orientationFilter(axis_min, axis_max, orient_tDims);
     DE_ComplexDoubleVector houghCircleVector = houghCircleFilter(axis_min, axis_max);
 
-    if (orientArray->getNumberOfTuples() != houghCircleVector.size())
+    if(orientArray->getNumberOfTuples() != houghCircleVector.size())
     {
       setErrorCondition(-31001);
       QString ss = QObject::tr("There was an internal error.  Please ask the DREAM.3D developers for more information.");
@@ -391,9 +408,11 @@ void DetectEllipsoids::execute()
       tbb::task_group* g = new tbb::task_group;
       int threads = init.default_num_threads();
 
-      for (int i=0; i<threads; i++)
+      for(int i = 0; i < threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr));
+        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min,
+                                    axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr,
+                                    m_EllipseFeatureAttributeMatrixPtr));
       }
 
       g->wait();
@@ -402,17 +421,19 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr, m_EllipseFeatureAttributeMatrixPtr);
+      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max,
+                                m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr,
+                                m_EllipseFeatureAttributeMatrixPtr);
       impl();
     }
 
-    if (getCancel() == true)
+    if(getCancel() == true)
     {
       return;
     }
 
     // Plot each detected ellipse in the new Ellipse Detection Feature Ids array
-    for (int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
+    for(int featureId = 1; featureId < m_CenterCoordinatesPtr->getNumberOfTuples(); featureId++)
     {
       double cenx_val = m_CenterCoordinatesPtr->getComponent(featureId, 0);
       double ceny_val = m_CenterCoordinatesPtr->getComponent(featureId, 1);
@@ -421,20 +442,20 @@ void DetectEllipsoids::execute()
       double rotangle_val = m_RotationalAnglesArrayPtr->getValue(featureId);
 
       double nan = std::numeric_limits<double>::quiet_NaN();
-      if (cenx_val == nan || ceny_val == nan || majaxis_val == nan || minaxis_val == nan || rotangle_val == nan)
+      if(cenx_val == nan || ceny_val == nan || majaxis_val == nan || minaxis_val == nan || rotangle_val == nan)
       {
         continue;
       }
 
       size_t count = 1;
       DoubleArrayType::Pointer ellipseCoords = plotEllipsev2(cenx_val, ceny_val, majaxis_val, minaxis_val, rotangle_val, count);
-      for (int i = 1; i <= count; i++)
+      for(int i = 1; i <= count; i++)
       {
         int x = static_cast<int>(ellipseCoords->getComponent(i, 1));
         int y = static_cast<int>(ellipseCoords->getComponent(i, 0));
-        int z = 0;    // 3DIM: This can be changed later to handle 3-dimensions
+        int z = 0; // 3DIM: This can be changed later to handle 3-dimensions
 
-        if (x >= 0 && y >= 0 && x < xDim && y < yDim)
+        if(x >= 0 && y >= 0 && x < xDim && y < yDim)
         {
           index = sub2ind(imageDims, x, y, z);
           m_DetectedEllipsoidsFeatureIdsPtr->setValue(index, featureId);
@@ -449,16 +470,16 @@ void DetectEllipsoids::execute()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, int maxAxisLength, QVector<size_t> &tDims)
+DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, int maxAxisLength, QVector<size_t>& tDims)
 {
   double doubleMax = static_cast<double>(maxAxisLength);
   double doubleMin = static_cast<double>(minAxisLength);
-  double doubleMin_squared = doubleMin*doubleMin;
-  double doubleMax_squared = doubleMax*doubleMax;
+  double doubleMin_squared = doubleMin * doubleMin;
+  double doubleMax_squared = doubleMax * doubleMax;
 
-  size_t xDim = 2*maxAxisLength+1;
-  size_t yDim = 2*maxAxisLength+1;
-  size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
+  size_t xDim = 2 * maxAxisLength + 1;
+  size_t yDim = 2 * maxAxisLength + 1;
+  size_t zDim = 1; // 3DIM: This can be changed later to handle 3-dimensions
   QVector<size_t> cDims(1, 3);
   tDims.clear();
   tDims.push_back(xDim);
@@ -466,22 +487,22 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
   tDims.push_back(zDim);
   DoubleArrayType::Pointer orientationCoords = DoubleArrayType::CreateArray(tDims, cDims, "Orientation Coordinates");
 
-  for (int z = 1; z <= zDim; z++)
+  for(int z = 1; z <= zDim; z++)
   {
-    for (int y = 1; y <= yDim; y++)
+    for(int y = 1; y <= yDim; y++)
     {
-      for (int x = 1; x <= xDim; x++)
+      for(int x = 1; x <= xDim; x++)
       {
         int xIdx = x - 1;
         int yIdx = y - 1;
         int zIdx = z - 1;
         size_t index = sub2ind(tDims, xIdx, yIdx, zIdx);
 
-        double m = static_cast<double>(y)-1.0-doubleMax;
-        double n = static_cast<double>(x)-1.0-doubleMax;
-        double theta = std::atan2(n,m);
+        double m = static_cast<double>(y) - 1.0 - doubleMax;
+        double n = static_cast<double>(x) - 1.0 - doubleMax;
+        double theta = std::atan2(n, m);
 
-        if( (m*m) + (n*n) >= doubleMin_squared && (m*m) + (n*n) <= doubleMax_squared)
+        if((m * m) + (n * n) >= doubleMin_squared && (m * m) + (n * n) <= doubleMax_squared)
         {
           orientationCoords->setComponent(index, 0, std::cos(theta));
           orientationCoords->setComponent(index, 1, std::sin(theta));
@@ -505,23 +526,23 @@ DoubleArrayType::Pointer DetectEllipsoids::orientationFilter(int minAxisLength, 
 // -----------------------------------------------------------------------------
 DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, int maxAxisLength)
 {
-  size_t xDim = 2*maxAxisLength+1;
-  size_t yDim = 2*maxAxisLength+1;
-  size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
+  size_t xDim = 2 * maxAxisLength + 1;
+  size_t yDim = 2 * maxAxisLength + 1;
+  size_t zDim = 1; // 3DIM: This can be changed later to handle 3-dimensions
   size_t totalElements = xDim * yDim * zDim;
   QVector<size_t> tDims;
   tDims.push_back(xDim);
   tDims.push_back(yDim);
   tDims.push_back(zDim);
   DE_ComplexDoubleVector houghCircleCoords(totalElements);
-  int minAxisLength_squared = minAxisLength*minAxisLength;
-  int maxAxisLength_squared = maxAxisLength*maxAxisLength;
+  int minAxisLength_squared = minAxisLength * minAxisLength;
+  int maxAxisLength_squared = maxAxisLength * maxAxisLength;
 
-  for (int z = 1; z <= zDim; z++)
+  for(int z = 1; z <= zDim; z++)
   {
-    for (int y = 1; y <= yDim; y++)
+    for(int y = 1; y <= yDim; y++)
     {
-      for (int x = 1; x <= xDim; x++)
+      for(int x = 1; x <= xDim; x++)
       {
         int xIdx = x - 1;
         int yIdx = y - 1;
@@ -529,14 +550,14 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
 
         size_t index = sub2ind(tDims, xIdx, yIdx, zIdx);
 
-        double m = y-1-maxAxisLength;
-        double n = x-1-maxAxisLength;
-        double phi = ( std::sqrt( (m*m) + (n*n) ) - minAxisLength ) / ( maxAxisLength - minAxisLength );
+        double m = y - 1 - maxAxisLength;
+        double n = x - 1 - maxAxisLength;
+        double phi = (std::sqrt((m * m) + (n * n)) - minAxisLength) / (maxAxisLength - minAxisLength);
 
-        if( (m*m) + (n*n) >= minAxisLength_squared && (m*m) + (n*n) <= maxAxisLength_squared)
+        if((m * m) + (n * n) >= minAxisLength_squared && (m * m) + (n * n) <= maxAxisLength_squared)
         {
-          std::complex<double> complexVal(std::cos(2*M_PI*phi), std::sin(2*M_PI*phi));
-          std::complex<double> value = 1.0/2.0/M_PI/std::sqrt((m*m) + (n*n)) * complexVal;
+          std::complex<double> complexVal(std::cos(2 * M_PI * phi), std::sin(2 * M_PI * phi));
+          std::complex<double> value = 1.0 / 2.0 / M_PI / std::sqrt((m * m) + (n * n)) * complexVal;
           houghCircleCoords[index] = value;
         }
         else
@@ -553,13 +574,15 @@ DE_ComplexDoubleVector DetectEllipsoids::houghCircleFilter(int minAxisLength, in
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector &convCoords_X, DE_ComplexDoubleVector &convCoords_Y, DE_ComplexDoubleVector &convCoords_Z)
+void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFilter, DE_ComplexDoubleVector houghCircleFilter, DE_ComplexDoubleVector& convCoords_X,
+                                         DE_ComplexDoubleVector& convCoords_Y, DE_ComplexDoubleVector& convCoords_Z)
 {
-  if (orientationFilter->getNumberOfTuples() != houghCircleFilter.size()
-      || orientationFilter->getNumberOfComponents() != 3)
-  { return; }
+  if(orientationFilter->getNumberOfTuples() != houghCircleFilter.size() || orientationFilter->getNumberOfComponents() != 3)
+  {
+    return;
+  }
 
-  for (int i=0; i<orientationFilter->getNumberOfTuples(); i++)
+  for(int i = 0; i < orientationFilter->getNumberOfTuples(); i++)
   {
     std::complex<double> hcValue = houghCircleFilter[i];
 
@@ -580,30 +603,30 @@ void DetectEllipsoids::convolutionFilter(DoubleArrayType::Pointer orientationFil
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-std::vector<double> DetectEllipsoids::smoothingFilter(int n_size, QVector<size_t> &tDims)
+std::vector<double> DetectEllipsoids::smoothingFilter(int n_size, QVector<size_t>& tDims)
 {
-  int xDim = 2*n_size+1;
-  int yDim = 2*n_size+1;
-  int zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
+  int xDim = 2 * n_size + 1;
+  int yDim = 2 * n_size + 1;
+  int zDim = 1; // 3DIM: This can be changed later to handle 3-dimensions
   tDims.clear();
   tDims.push_back(xDim);
   tDims.push_back(yDim);
   tDims.push_back(zDim);
 
-  std::vector<double> smooth(xDim*yDim*zDim);
-  int n_size_squared = n_size*n_size;
+  std::vector<double> smooth(xDim * yDim * zDim);
+  int n_size_squared = n_size * n_size;
 
-  for (int z = 0; z < zDim; z++)
+  for(int z = 0; z < zDim; z++)
   {
-    for (int y = 0; y < yDim; y++)
+    for(int y = 0; y < yDim; y++)
     {
-      for (int x = 0; x < xDim; x++)
+      for(int x = 0; x < xDim; x++)
       {
-        int m = y-n_size;
-        int n = x-n_size;
+        int m = y - n_size;
+        int n = x - n_size;
         int index = sub2ind(tDims, x, y, z);
 
-        if( ((m*m) + (n*n)) <= n_size_squared)
+        if(((m * m) + (n * n)) <= n_size_squared)
         {
           smooth[index] = 1;
         }
@@ -628,17 +651,17 @@ Int32ArrayType::Pointer DetectEllipsoids::createOffsetArray(QVector<size_t> kern
   size_t xDim = kernel_tDims[0], yDim = kernel_tDims[1], zDim = kernel_tDims[2];
   int index = 0;
 
-  for (int z = 0; z < zDim; z++)
+  for(int z = 0; z < zDim; z++)
   {
-    for (int y = 0; y < yDim; y++)
+    for(int y = 0; y < yDim; y++)
     {
-      for (int x = 0; x < xDim; x++)
+      for(int x = 0; x < xDim; x++)
       {
-        int xVal = x - xDim/2;
+        int xVal = x - xDim / 2;
         offsetArray->setComponent(index, 0, xVal);
-        int yVal = y - yDim/2;
+        int yVal = y - yDim / 2;
         offsetArray->setComponent(index, 1, yVal);
-        int zVal = z - zDim/2;
+        int zVal = z - zDim / 2;
         offsetArray->setComponent(index, 2, zVal);
         index++;
       }
@@ -651,17 +674,17 @@ Int32ArrayType::Pointer DetectEllipsoids::createOffsetArray(QVector<size_t> kern
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t &count)
+DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, double p, double q, double theta, size_t& count)
 {
   // xc, yc = center of ellipse
   // p, q = length of semi-major and semi-minor axes, respectively
   // theta = angle of counterclockwise rotation of major axis from x-axis in radians
 
-//    if(isreal(xc) == 0 || isreal(yc) == 0 || isreal(p) == 0 || isreal(q) == 0 || isreal(theta) == 0)
-//    {
-//      // Error: Input must be real valued!
-//      return DoubleArrayType::NullPointer();
-//    }
+  //    if(isreal(xc) == 0 || isreal(yc) == 0 || isreal(p) == 0 || isreal(q) == 0 || isreal(theta) == 0)
+  //    {
+  //      // Error: Input must be real valued!
+  //      return DoubleArrayType::NullPointer();
+  //    }
 
   // theta must statisfy: -M_PI/2 < theta <= M_PI/2 (can be rotated due to symmetry)
   while(theta > M_PI_2)
@@ -675,10 +698,10 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
 
   // if(theta >= 0) %(xa,xb) is in 1st quadrant and (xb,yb) is in 2nd quadrant
   // else (xa,xb) is in 4th quadrant and (xb,yb) is in 1nd quadrant
-  double xa = p*cos(theta);
-  double ya = p*sin(theta);
-  double xb = -q*sin(theta);
-  double yb = q*cos(theta);
+  double xa = p * cos(theta);
+  double ya = p * sin(theta);
+  double xb = -q * sin(theta);
+  double yb = q * cos(theta);
 
   double xa_sq = xa * xa;
   double ya_sq = ya * ya;
@@ -700,52 +723,52 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
   // the ellipse is described by the eqution:
   //   A*x^2 + 2*B*x*y + C*y^2 = D
 
-  //Initialize Values
+  // Initialize Values
   double y = -ya;
   double x = -xa;
-  double dy = -( (a * x) + (b * y) );
+  double dy = -((a * x) + (b * y));
   double dx = (b * x) + (c * y);
 
   // Round values to nearest whole integer
-  a=std::round(a);
-  b=std::round(b);
-  c=std::round(c);
-  d=std::round(d);
-  x=std::round(x);
-  y=std::round(y);
-  dx=std::round(dx);
-  dy=std::round(dy);
+  a = std::round(a);
+  b = std::round(b);
+  c = std::round(c);
+  d = std::round(d);
+  x = std::round(x);
+  y = std::round(y);
+  dx = std::round(dx);
+  dy = std::round(dy);
 
   // estimate number of points on ellipse for array pre-allocation using arc length
 
   // Estimate perimeter using approximate formula
   // (Note this is a bad approximation if the eccentricity is high)
-  size_t perim = static_cast<size_t>(std::ceil( (M_PI * sqrt( 2 * (p*p + q*q) - std::pow((p-q), 2) / 2)) ));
+  size_t perim = static_cast<size_t>(std::ceil((M_PI * sqrt(2 * (p * p + q * q) - std::pow((p - q), 2) / 2))));
   // Preallocate array using estimated perimeter
   DoubleArrayType::Pointer ellipseCoords = DoubleArrayType::CreateArray(perim, QVector<size_t>(1, 2), "Ellipse Coordinates");
-  for (int i=0; i < ellipseCoords->getNumberOfTuples(); i++)
+  for(int i = 0; i < ellipseCoords->getNumberOfTuples(); i++)
   {
     ellipseCoords->setComponent(i, 0, std::numeric_limits<double>::quiet_NaN());
     ellipseCoords->setComponent(i, 1, std::numeric_limits<double>::quiet_NaN());
   }
 
-  if( x <= 0 && y <= 0 ) // (-xa,-ya) is in the third quadrant or on the x axis
+  if(x <= 0 && y <= 0) // (-xa,-ya) is in the third quadrant or on the x axis
   {
-    if( dx == 0 || std::abs(dy/dx) > 1 ) // 1. Slope at (-xa,-ya) is larger than 1 in magnitude. Five sub-arcs are drawn.
+    if(dx == 0 || std::abs(dy / dx) > 1) // 1. Slope at (-xa,-ya) is larger than 1 in magnitude. Five sub-arcs are drawn.
     {
       /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is
             infinite. For all points between, the ellipse has slope larger
             than 1 in magnitude, so y is always incremented at each step. */
 
-      while (dx < 0) // loop until point with infinite slope occurs
+      while(dx < 0) // loop until point with infinite slope occurs
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y++;
         dy = dy - b;
         dx = dx + c;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           x--;
@@ -757,15 +780,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is 1. For
             all points between, the ellipse has slope larger than 1 in
             magnitude, so y is always incremented at each step. */
-      while (dy > dx)
+      while(dy > dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y++;
         dy = dy - b;
         dx = dx + c;
-        double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
+        double sigma = a * (x + 1) * (x + 1) + 2 * b * (x + 1) * y + c * y * y - d;
         if(sigma >= 0)
         {
           x++;
@@ -777,15 +800,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is 0. For
             all points between, the ellipse has slope less than 1 in
             magnitude, so x is always incremented at each step. */
-      while (dy > 0)
+      while(dy > 0)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           y++;
@@ -797,15 +820,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is -1. For
             all points between, the ellipse has slope less than 1 in
             magnitude, so x is always incremented at each step. */
-      while (std::abs(dy) < dx)
+      while(std::abs(dy) < dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+        double sigma = a * x * x + 2 * b * x * (y - 1) + c * (y - 1) * (y - 1) - d;
         if(sigma >= 0)
         {
           y--;
@@ -817,15 +840,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
             ellipse has slope larger than 1 in magnitude, so y is always
             decremented at each step. */
-      while (y > ya)
+      while(y > ya)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y--;
         dy = dy + b;
         dx = dx - c;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           x++;
@@ -839,36 +862,36 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is -1. For
             all points between, the ellipse has slope less than 1 in
             magnitude, so x is always decremented at each step. */
-    while ( dy < std::abs(dx) ) // loop until point with infinite slope occurs
-    {
-      //Store pixel values
-      STORE_PIXEL_VALUES(ellipseCoords, count);
-
-      x--;
-      dy = dy + a;
-      dx = dx - b;
-      double sigma = a*x*x+2*b*x*(y+1)+c*(y+1)*(y+1)-d;
-      if(sigma >= 0)
+      while(dy < std::abs(dx)) // loop until point with infinite slope occurs
       {
-        y++;
-        dy = dy - b;
-        dx = dx + c;
+        // Store pixel values
+        STORE_PIXEL_VALUES(ellipseCoords, count);
+
+        x--;
+        dy = dy + a;
+        dx = dx - b;
+        double sigma = a * x * x + 2 * b * x * (y + 1) + c * (y + 1) * (y + 1) - d;
+        if(sigma >= 0)
+        {
+          y++;
+          dy = dy - b;
+          dx = dx + c;
+        }
       }
-    }
 
       /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is infinite. For
             all points between, the ellipse has slope larger than 1 in
             magnitude, so y is always incremented at each step. */
-      while (dx < 0)
+      while(dx < 0)
       {
 
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y++;
         dy = dy - b;
         dx = dx + c;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           x--;
@@ -880,16 +903,16 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is 1. For
          all points between, the ellipse has slope larger than 1 in
          magnitude, so y is always incremented at each step. */
-      while (dy > dx)
+      while(dy > dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y++;
         dy = dy - b;
         dx = dx + c;
-        double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
-        if( sigma >= 0 )
+        double sigma = a * (x + 1) * (x + 1) + 2 * b * (x + 1) * y + c * y * y - d;
+        if(sigma >= 0)
         {
           x++;
           dy = dy - a;
@@ -901,15 +924,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
             zero. For all points between, the ellipse has slope less
             than 1 in magnitude, so x is always incremented at each step. */
 
-      while (dy > 0) // loop until point with infinite slope occurs
+      while(dy > 0) // loop until point with infinite slope occurs
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           y++;
@@ -922,15 +945,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
             ellipse has slope less than 1 in magnitude, so x is always
             incremented at each step. */
 
-      while (x < xa)
+      while(x < xa)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+        double sigma = a * x * x + 2 * b * x * (y - 1) + c * (y - 1) * (y - 1) - d;
         if(sigma >= 0)
         {
           y--;
@@ -942,20 +965,20 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
   }
   else // (-xa,-xb) is in the second quadrant
   {
-    if ( std::abs(dy/dx) >= 1 ) // 1. Slope at (-xa,-ya) is greater than or equal to 1 in magnitude. Five subarcs are drawn.
+    if(std::abs(dy / dx) >= 1) // 1. Slope at (-xa,-ya) is greater than or equal to 1 in magnitude. Five subarcs are drawn.
     {
       /* (a) Arc from (-xa,-ya) to a point (x0, y0) whose slope is 1.
             For all points between, the ellipse has slope larger than 1 in
             magnitude, so y is incremented at each step. */
-      while (dy > dx)
+      while(dy > dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y++;
         dy = dy - b;
         dx = dx + c;
-        double sigma = a*(x+1)*(x+1)+2*b*(x+1)*y+c*y*y-d;
+        double sigma = a * (x + 1) * (x + 1) + 2 * b * (x + 1) * y + c * y * y - d;
         if(sigma >= 0)
         {
           x++;
@@ -967,15 +990,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (b) Arc from (x0, y0) to a point (x1, y1) whose slope is
             zero. For all points between, the ellipse has slope less
             than 1 in magnitude, so x is always incremented. */
-      while (dy > 0)
+      while(dy > 0)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           y++;
@@ -987,15 +1010,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is -1.
             For all points between, the ellipse has slope less than 1 in
             magnitude, so x is always incremented at each step. */
-      while (std::abs(dy) < dx)
+      while(std::abs(dy) < dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+        double sigma = a * x * x + 2 * b * x * (y - 1) + c * (y - 1) * (y - 1) - d;
         if(sigma >= 0)
         {
           y--;
@@ -1007,15 +1030,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is infinity.
          For all points between, the ellipse has slope greater than 1 in
          magnitude, so y is always decremented at each step. */
-      while (dx > 0)
+      while(dx > 0)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y--;
         dy = dy + b;
         dx = dx - c;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           x++;
@@ -1027,15 +1050,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
           ellipse has slope greater than 1 in magnitude, so y is always
           decremented at each step. */
-      while (y > ya)
+      while(y > ya)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y--;
         dy = dy + b;
         dx = dx - c;
-        double sigma = a*(x-1)*(x-1)+2*b*(x-1)*y+c*y*y-d;
+        double sigma = a * (x - 1) * (x - 1) + 2 * b * (x - 1) * y + c * y * y - d;
         if(sigma >= 0)
         {
           x--;
@@ -1050,15 +1073,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (a) Arc from (-xa, -ya) to a point (x0, y0) whose slope is 0.
             For all points between, the ellipse has slope less than 1 in
             magnitude, so x is always incremented at each step. */
-      while (dy > 0)
+      while(dy > 0)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           y++;
@@ -1070,15 +1093,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (b) Arc from (x0,y0) to a point (x1, y1) whose slope is -1.
             For all points between, the ellipse has slope less than 1 in
             magnitude, so x is always decremented. */
-      while (std::abs(dy) < dx)
+      while(std::abs(dy) < dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x++;
         dy = dy - a;
         dx = dx + b;
-        double sigma = a*x*x+2*b*x*(y-1)+c*(y-1)*(y-1)-d;
+        double sigma = a * x * x + 2 * b * x * (y - 1) + c * (y - 1) * (y - 1) - d;
         if(sigma >= 0)
         {
           y--;
@@ -1090,15 +1113,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (c) Arc from (x1, y1) to a point (x2, y2) whose slope is
             infinite. For all points between, the ellipse has slope larger
             than 1, so y is always incremented. */
-      while (dx > 0)
+      while(dx > 0)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y--;
         dy = dy + b;
         dx = dx - c;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           x++;
@@ -1110,15 +1133,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (d) Arc from (x2, y2) to a point (x3, y3) whose slope is 1.
             For all points between, the ellipse has slope larger than 1 in
             magnitude, so y is always decremented at each step. */
-      while (dy < dx)
+      while(dy < dx)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         y--;
         dy = dy + b;
         dx = dx - c;
-        double sigma = a*(x-1)*(x-1)+2*b*(x-1)*y+c*y*y-d;
+        double sigma = a * (x - 1) * (x - 1) + 2 * b * (x - 1) * y + c * y * y - d;
         if(sigma >= 0)
         {
           x--;
@@ -1130,15 +1153,15 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
       /* (e) Arc from (x3, y3) to (xa, ya). For all points between, the
           ellipse has slope less than 1 in magnitude, so x is always
           incremented at each step. */
-      while (x > xa)
+      while(x > xa)
       {
-        //Store pixel values
+        // Store pixel values
         STORE_PIXEL_VALUES(ellipseCoords, count);
 
         x--;
         dy = dy + a;
         dx = dx - b;
-        double sigma = a*x*x+2*b*x*y+c*y*y-d;
+        double sigma = a * x * x + 2 * b * x * y + c * y * y - d;
         if(sigma < 0)
         {
           y--;
@@ -1146,7 +1169,6 @@ DoubleArrayType::Pointer DetectEllipsoids::plotEllipsev2(double xc, double yc, d
           dx = dx - c;
         }
       }
-
     }
   }
 
@@ -1205,7 +1227,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
 
   if(xc <= 0 || xc > sizeX || yc <= 0 || yc > sizeY)
   {
-    //Error: Fill ellipse initiated outside of image boundary!
+    // Error: Fill ellipse initiated outside of image boundary!
     return Int32ArrayType::NullPointer();
   }
 
@@ -1213,9 +1235,9 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
   I_tmp->initializeWithZeros();
 
   bool copy = I->copyIntoArray(I_tmp);
-  if (copy == false)
+  if(copy == false)
   {
-    //Error: Could not copy array contents into new array!
+    // Error: Could not copy array contents into new array!
     return Int32ArrayType::NullPointer();
   }
 
@@ -1223,32 +1245,32 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
   {
     double x = stackX->getValue(stackSize);
     double y = stackY->getValue(stackSize);
-    double z = 0;   // 3DIM: This can be changed later to handle 3-dimensions
+    double z = 0; // 3DIM: This can be changed later to handle 3-dimensions
     stackSize--;
 
     double xt = x - xc;
     double yt = y - yc;
 
-    double sigma = a*xt*xt+2*b*xt*yt+c*yt*yt-d;
+    double sigma = a * xt * xt + 2 * b * xt * yt + c * yt * yt - d;
 
     size_t index = sub2ind(I_tDims, y, x, z);
-    if (sigma <= 0 && I_tmp->getValue(index) != val) // fill in pixel
+    if(sigma <= 0 && I_tmp->getValue(index) != val) // fill in pixel
     {
       I_tmp->setValue(index, val);
 
       if(stackSize > maxStack - 5)
       {
         // Increase stack size
-        stackX->resize(maxStack+1000);
+        stackX->resize(maxStack + 1000);
         stackX->initializeWithValue(0, maxStack);
 
-        stackY->resize(maxStack+1000);
+        stackY->resize(maxStack + 1000);
         stackY->initializeWithValue(0, maxStack);
         maxStack = maxStack + 1000;
       }
 
       // x + 1
-      if( x + 1 < sizeX )
+      if(x + 1 < sizeX)
       {
         stackSize++;
         stackX->setValue(stackSize, x + 1);
@@ -1256,7 +1278,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
       }
 
       // x - 1
-      if( x - 1 >= 0 )
+      if(x - 1 >= 0)
       {
         stackSize++;
         stackX->setValue(stackSize, x - 1);
@@ -1264,7 +1286,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
       }
 
       // y + 1
-      if( y + 1 < sizeY )
+      if(y + 1 < sizeY)
       {
         stackSize++;
         stackX->setValue(stackSize, x);
@@ -1272,7 +1294,7 @@ Int32ArrayType::Pointer DetectEllipsoids::fillEllipse(Int32ArrayType::Pointer I,
       }
 
       // y - 1
-      if( y - 1 >= 0 )
+      if(y - 1 >= 0)
       {
         stackSize++;
         stackX->setValue(stackSize, x);
@@ -1295,13 +1317,13 @@ size_t DetectEllipsoids::sub2ind(QVector<size_t> tDims, size_t x, size_t y, size
 // -----------------------------------------------------------------------------
 // Helper Method - Grabs Matrix Coordinates From Array Index
 // -----------------------------------------------------------------------------
-void DetectEllipsoids::ind2sub(QVector<size_t> tDims, size_t index, size_t &x, size_t &y, size_t &z) const
+void DetectEllipsoids::ind2sub(QVector<size_t> tDims, size_t index, size_t& x, size_t& y, size_t& z) const
 {
   x = (index % tDims[0]);
   y = (index / tDims[0]) % tDims[1];
 
   // 3DIM:
-  if (tDims.size() > 2)
+  if(tDims.size() > 2)
   {
     z = ((index / tDims[0]) / tDims[1]) % tDims[2];
   }
@@ -1326,7 +1348,7 @@ size_t DetectEllipsoids::getNextFeatureId()
 {
   m_NextExecutedFeatureIdSem.acquire();
   int32_t featureId = m_NextExecutedFeatureId;
-  if (m_NextExecutedFeatureId >= m_TotalNumberOfFeatures)
+  if(m_NextExecutedFeatureId >= m_TotalNumberOfFeatures)
   {
     featureId = -1;
   }
@@ -1367,7 +1389,9 @@ AbstractFilter::Pointer DetectEllipsoids::newFilterInstance(bool copyFilterParam
 //
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getCompiledLibraryName()
-{ return FiberToolboxConstants::FiberToolboxBaseName; }
+{
+  return FiberToolboxConstants::FiberToolboxBaseName;
+}
 
 // -----------------------------------------------------------------------------
 //
@@ -1384,7 +1408,7 @@ const QString DetectEllipsoids::getFilterVersion()
 {
   QString version;
   QTextStream vStream(&version);
-  vStream <<  FiberToolbox::Version::Major() << "." << FiberToolbox::Version::Minor() << "." << FiberToolbox::Version::Patch();
+  vStream << FiberToolbox::Version::Major() << "." << FiberToolbox::Version::Minor() << "." << FiberToolbox::Version::Patch();
   return version;
 }
 
@@ -1392,17 +1416,22 @@ const QString DetectEllipsoids::getFilterVersion()
 //
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getGroupName()
-{ return SIMPL::FilterGroups::Unsupported; }
+{
+  return SIMPL::FilterGroups::Unsupported;
+}
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getSubGroupName()
-{ return "FiberToolbox"; }
+{
+  return "FiberToolbox";
+}
 
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getHumanLabel()
-{ return "Detect Ellipsoids"; }
-
+{
+  return "Detect Ellipsoids";
+}

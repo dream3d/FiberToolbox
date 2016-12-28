@@ -47,7 +47,7 @@
 
 class DetectEllipsoids;
 
-typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
+typedef std::vector<std::complex<double>> DE_ComplexDoubleVector;
 
 /**
  * @brief The DetectEllipsoidsImpl class implements a threaded algorithm that detects ellipsoids in a FeatureIds array
@@ -55,7 +55,10 @@ typedef std::vector<std::complex<double> > DE_ComplexDoubleVector;
 class DetectEllipsoidsImpl
 {
 public:
-  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X, DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM);
+  DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X,
+                       DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray, std::vector<double> smoothFil,
+                       Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min, DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis,
+                       DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle, AttributeMatrix::Pointer ellipseFeatureAM);
 
   virtual ~DetectEllipsoidsImpl();
 
@@ -70,8 +73,7 @@ public:
    * @param image_tDims
    * @return
    */
-  template <typename T>
-  Int8ArrayType::Pointer findEdges(typename DataArray<T>::Pointer imagePtr, QVector<size_t> image_tDims) const
+  template <typename T> Int8ArrayType::Pointer findEdges(typename DataArray<T>::Pointer imagePtr, QVector<size_t> image_tDims) const
   {
     Int8ArrayType::Pointer edgeArray = Int8ArrayType::CreateArray(image_tDims, QVector<size_t>(1, 1), "Edge Array");
     edgeArray->initializeWithZeros();
@@ -79,45 +81,45 @@ public:
     size_t xDim = image_tDims[0];
     size_t yDim = image_tDims[1];
 
-    for (int y = 0; y < yDim; y++)
+    for(int y = 0; y < yDim; y++)
     {
-      for (int x = 0; x < xDim; x++)
+      for(int x = 0; x < xDim; x++)
       {
         size_t index = (xDim * y) + x;
         T currentValue = imagePtr->getValue(index);
-        if (currentValue != 0)
+        if(currentValue != 0)
         {
-          if ((y - 1) >= 0)
+          if((y - 1) >= 0)
           {
             int topIdx = (xDim * (y - 1)) + x;
-            if (imagePtr->getValue(topIdx) == 0)
+            if(imagePtr->getValue(topIdx) == 0)
             {
               edgeArray->setValue(index, 1);
               continue;
             }
           }
-          if ((y + 1) < yDim)
+          if((y + 1) < yDim)
           {
             int bottomIdx = (xDim * (y + 1)) + x;
-            if (imagePtr->getValue(bottomIdx) == 0)
+            if(imagePtr->getValue(bottomIdx) == 0)
             {
               edgeArray->setValue(index, 1);
               continue;
             }
           }
-          if ((x - 1) >= 0)
+          if((x - 1) >= 0)
           {
             int leftIdx = (xDim * y) + (x - 1);
-            if (imagePtr->getValue(leftIdx) == 0)
+            if(imagePtr->getValue(leftIdx) == 0)
             {
               edgeArray->setValue(index, 1);
               continue;
             }
           }
-          if ((x + 1) < xDim)
+          if((x + 1) < xDim)
           {
             int rightIdx = (xDim * y) + (x + 1);
-            if (imagePtr->getValue(rightIdx) == 0)
+            if(imagePtr->getValue(rightIdx) == 0)
             {
               edgeArray->setValue(index, 1);
               continue;
@@ -138,8 +140,7 @@ public:
    * @param image_tDims
    * @return
    */
-  template <typename T>
-  std::vector<T> convoluteImage(DoubleArrayType::Pointer image, std::vector<T> kernel, Int32ArrayType::Pointer offsetArray, QVector<size_t> image_tDims) const
+  template <typename T> std::vector<T> convoluteImage(DoubleArrayType::Pointer image, std::vector<T> kernel, Int32ArrayType::Pointer offsetArray, QVector<size_t> image_tDims) const
   {
     std::vector<T> convArray;
 
@@ -150,31 +151,31 @@ public:
     T accumulator = 0;
     size_t xDim = image_tDims[0];
     size_t yDim = image_tDims[1];
-    size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
+    size_t zDim = 1; // 3DIM: This can be changed later to handle 3-dimensions
     int gradNumTuples = image->getNumberOfTuples();
     int reverseKernelCount = kernel.size();
-    for (int i=0; i<gradNumTuples; i++)
+    for(int i = 0; i < gradNumTuples; i++)
     {
       size_t imageCurrentX = 0, imageCurrentY = 0, imageCurrentZ = 0;
       m_Filter->ind2sub(image_tDims, i, imageCurrentX, imageCurrentY, imageCurrentZ);
 
-      for (int j = 0; j < reverseKernelCount; j++)
+      for(int j = 0; j < reverseKernelCount; j++)
       {
-        int currCoord_X = imageCurrentX + offsetArrayPtr[j*offsetArrayNumOfComps];
-        int currCoord_Y = imageCurrentY + offsetArrayPtr[(j*offsetArrayNumOfComps) + 1];
-        int currCoord_Z = imageCurrentZ + offsetArrayPtr[(j*offsetArrayNumOfComps) + 2];
+        int currCoord_X = imageCurrentX + offsetArrayPtr[j * offsetArrayNumOfComps];
+        int currCoord_Y = imageCurrentY + offsetArrayPtr[(j * offsetArrayNumOfComps) + 1];
+        int currCoord_Z = imageCurrentZ + offsetArrayPtr[(j * offsetArrayNumOfComps) + 2];
 
-        if (currCoord_X >= 0)
+        if(currCoord_X >= 0)
         {
-          if (currCoord_X < xDim)
+          if(currCoord_X < xDim)
           {
-            if (currCoord_Y >= 0)
+            if(currCoord_Y >= 0)
             {
-              if (currCoord_Y < yDim)
+              if(currCoord_Y < yDim)
               {
-                if (currCoord_Z >= 0)
+                if(currCoord_Z >= 0)
                 {
-                  if (currCoord_Z < zDim)
+                  if(currCoord_Z < zDim)
                   {
                     int gradIndex = (yDim * xDim * currCoord_Z) + (xDim * currCoord_Y) + currCoord_X;
 
@@ -215,31 +216,30 @@ public:
    * @param imageDims
    * @return
    */
-  QPair<size_t,size_t> plotlineEdgeInter(int x0, int y0, int x1, int y1, DoubleArrayType::Pointer binImage, QVector<size_t> imageDims) const;
+  QPair<size_t, size_t> plotlineEdgeInter(int x0, int y0, int x1, int y1, DoubleArrayType::Pointer binImage, QVector<size_t> imageDims) const;
 
   /**
    * @brief getIdOfMax
    * @param array
    * @return
    */
-  template <typename T>
-  int getIdOfMax(typename DataArray<T>::Pointer array) const
+  template <typename T> int getIdOfMax(typename DataArray<T>::Pointer array) const
   {
-    if (array.get() == nullptr)
+    if(array.get() == nullptr)
       return -1;
 
     int arrayLength = array->getNumberOfTuples() * array->getNumberOfComponents();
 
-    if (arrayLength <= 0)
+    if(arrayLength <= 0)
       return -1;
 
     double maxId = 0;
     double maxValue = std::numeric_limits<T>::min();
 
-    for (int i = 0; i < arrayLength; i++)
+    for(int i = 0; i < arrayLength; i++)
     {
       T value = array->getValue(i);
-      if (value > maxValue)
+      if(value > maxValue)
       {
         maxValue = value;
         maxId = i;
@@ -255,28 +255,27 @@ public:
    * @param tDims
    * @return
    */
-  template <typename T>
-  SizeTArrayType::Pointer findNonZeroIndices(typename DataArray<T>::Pointer array, QVector<size_t> tDims) const
+  template <typename T> SizeTArrayType::Pointer findNonZeroIndices(typename DataArray<T>::Pointer array, QVector<size_t> tDims) const
   {
     int size = array->getNumberOfTuples();
     size_t xDim = tDims[0];
     size_t yDim = tDims[1];
-    size_t zDim = 1;  // 3DIM: This can be changed later to handle 3-dimensions
+    size_t zDim = 1; // 3DIM: This can be changed later to handle 3-dimensions
     typename DataArray<size_t>::Pointer indices = DataArray<size_t>::CreateArray(size, QVector<size_t>(1, 2), "Non-Zero Indices");
 
-    if (array.get() == nullptr)
+    if(array.get() == nullptr)
       return indices;
 
     size_t count = 0;
-    for (size_t x = 0; x < xDim; x++)
+    for(size_t x = 0; x < xDim; x++)
     {
-      for (size_t y = 0; y < yDim; y++)
+      for(size_t y = 0; y < yDim; y++)
       {
-        for (size_t z = 0; z < zDim; z++)
+        for(size_t z = 0; z < zDim; z++)
         {
           size_t index = (xDim * y) + x;
           T value = array->getValue(index);
-          if (value != 0)
+          if(value != 0)
           {
             indices->setComponent(count, 0, x);
             indices->setComponent(count, 1, y);
@@ -298,7 +297,6 @@ public:
    */
   SizeTArrayType::Pointer bitwiseMatrixCombination(SizeTArrayType::Pointer matrix1, Int8ArrayType::Pointer matrix2) const;
 
-
   /**
    * @brief analyzeEdgePair
    * @param obj_edge_pair_a1
@@ -314,31 +312,31 @@ public:
    * @param rot_can
    * @param accum_can
    */
-  void analyzeEdgePair(SizeTArrayType::Pointer obj_edge_pair_a1, SizeTArrayType::Pointer obj_edge_pair_b1, size_t index, QVector<size_t> obj_tDims, Int8ArrayType::Pointer obj_mask_edge, size_t& can_num, DoubleArrayType::Pointer cenx_can, DoubleArrayType::Pointer ceny_can, DoubleArrayType::Pointer maj_can, DoubleArrayType::Pointer min_can, DoubleArrayType::Pointer rot_can, DoubleArrayType::Pointer accum_can) const;
+  void analyzeEdgePair(SizeTArrayType::Pointer obj_edge_pair_a1, SizeTArrayType::Pointer obj_edge_pair_b1, size_t index, QVector<size_t> obj_tDims, Int8ArrayType::Pointer obj_mask_edge,
+                       size_t& can_num, DoubleArrayType::Pointer cenx_can, DoubleArrayType::Pointer ceny_can, DoubleArrayType::Pointer maj_can, DoubleArrayType::Pointer min_can,
+                       DoubleArrayType::Pointer rot_can, DoubleArrayType::Pointer accum_can) const;
 
 private:
-
-  DetectEllipsoids*               m_Filter;
-  int*                            m_CellFeatureIdsPtr;
-  QVector<size_t>                 m_CellFeatureIdsDims;
-  UInt32ArrayType::Pointer        m_Corners;
-  DE_ComplexDoubleVector          m_ConvCoords_X;
-  DE_ComplexDoubleVector          m_ConvCoords_Y;
-  DE_ComplexDoubleVector          m_ConvCoords_Z;
-  QVector<size_t>                 m_ConvKernel_tDims;
-  Int32ArrayType::Pointer         m_ConvOffsetArray;
-  std::vector<double>             m_SmoothKernel;
-  Int32ArrayType::Pointer         m_SmoothOffsetArray;
-  double                          m_Axis_Min;
-  double                          m_Axis_Max;
-  float                           m_TolEllipse;
-  float                           m_Ba_Min;
-  DoubleArrayType::Pointer        m_Center;
-  DoubleArrayType::Pointer        m_Majaxis;
-  DoubleArrayType::Pointer        m_Minaxis;
-  DoubleArrayType::Pointer        m_Rotangle;
-  AttributeMatrix::Pointer        m_EllipseFeatureAM;
-
+  DetectEllipsoids* m_Filter;
+  int* m_CellFeatureIdsPtr;
+  QVector<size_t> m_CellFeatureIdsDims;
+  UInt32ArrayType::Pointer m_Corners;
+  DE_ComplexDoubleVector m_ConvCoords_X;
+  DE_ComplexDoubleVector m_ConvCoords_Y;
+  DE_ComplexDoubleVector m_ConvCoords_Z;
+  QVector<size_t> m_ConvKernel_tDims;
+  Int32ArrayType::Pointer m_ConvOffsetArray;
+  std::vector<double> m_SmoothKernel;
+  Int32ArrayType::Pointer m_SmoothOffsetArray;
+  double m_Axis_Min;
+  double m_Axis_Max;
+  float m_TolEllipse;
+  float m_Ba_Min;
+  DoubleArrayType::Pointer m_Center;
+  DoubleArrayType::Pointer m_Majaxis;
+  DoubleArrayType::Pointer m_Minaxis;
+  DoubleArrayType::Pointer m_Rotangle;
+  AttributeMatrix::Pointer m_EllipseFeatureAM;
 };
 
 #endif /* _detectellipsoidsimpl_h_ */
