@@ -127,7 +127,13 @@ public:
    * @brief notifyFeatureCompleted
    * @return
    */
-  void notifyFeatureCompleted();
+  void notifyFeatureCompleted(int featureId, int threadIndex);
+
+  /**
+   * @brief getThreadIndex Gets a new incremented thread Index for the private implemenetation to use.
+   * @return
+   */
+  int getThreadIndex();
 
   /**
    * @brief getCompiledLibraryName Reimplemented from @see AbstractFilter class
@@ -228,6 +234,8 @@ private:
   QSemaphore m_MaxFeatureIdSem;
   QSemaphore m_NextExecutedFeatureIdSem;
   QSemaphore m_FeaturesCompletedSem;
+  int m_ThreadIndex = 0;
+  QMap<int, int> m_ThreadWork;
 
   AttributeMatrix::Pointer m_EllipseFeatureAttributeMatrixPtr;
   Int32ArrayType::Pointer m_DetectedEllipsoidsFeatureIdsPtr;

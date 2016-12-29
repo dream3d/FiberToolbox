@@ -41,7 +41,7 @@
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X,
+DetectEllipsoidsImpl::DetectEllipsoidsImpl(int threadIndex, DetectEllipsoids* filter, int* cellFeatureIdsPtr, QVector<size_t> cellFeatureIdsDims, UInt32ArrayType::Pointer corners, DE_ComplexDoubleVector convCoords_X,
                                            DE_ComplexDoubleVector convCoords_Y, DE_ComplexDoubleVector convCoords_Z, QVector<size_t> kernel_tDims, Int32ArrayType::Pointer convOffsetArray,
                                            std::vector<double> smoothFil, Int32ArrayType::Pointer smoothOffsetArray, double axis_min, double axis_max, float tol_ellipse, float ba_min,
                                            DoubleArrayType::Pointer center, DoubleArrayType::Pointer majaxis, DoubleArrayType::Pointer minaxis, DoubleArrayType::Pointer rotangle,
@@ -66,7 +66,9 @@ DetectEllipsoidsImpl::DetectEllipsoidsImpl(DetectEllipsoids* filter, int* cellFe
 , m_Minaxis(minaxis)
 , m_Rotangle(rotangle)
 , m_EllipseFeatureAM(ellipseFeatureAM)
+, m_ThreadIndex(threadIndex)
 {
+
 }
 
 // -----------------------------------------------------------------------------
@@ -425,7 +427,7 @@ void DetectEllipsoidsImpl::operator()() const
     }
 
     // Notify the user interface that the feature is completed
-    m_Filter->notifyFeatureCompleted();
+    m_Filter->notifyFeatureCompleted(featureId, m_ThreadIndex);
 
     featureId = m_Filter->getNextFeatureId();
   }

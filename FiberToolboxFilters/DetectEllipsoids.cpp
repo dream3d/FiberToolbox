@@ -131,6 +131,9 @@ void DetectEllipsoids::initialize()
 
   // Initialize counter to track number of detected ellipses
   m_Ellipse_Count = 0;
+
+  m_ThreadIndex = 0;
+  m_ThreadWork.clear();
 }
 
 // -----------------------------------------------------------------------------
@@ -410,7 +413,8 @@ void DetectEllipsoids::execute()
 
       for(int i = 0; i < threads; i++)
       {
-        g->run(DetectEllipsoidsImpl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min,
+        m_ThreadWork[i] = 0;
+        g->run(DetectEllipsoidsImpl(i, this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min,
                                     axis_max, m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr,
                                     m_EllipseFeatureAttributeMatrixPtr));
       }
@@ -421,9 +425,10 @@ void DetectEllipsoids::execute()
     else
 #endif
     {
-      DetectEllipsoidsImpl impl(this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max,
+      DetectEllipsoidsImpl impl(0, this, cellFeatureIdsPtr, imageDims, corners, convCoords_X, convCoords_Y, convCoords_Z, orient_tDims, convOffsetArray, smoothFil, smoothOffsetArray, axis_min, axis_max,
                                 m_HoughTransformThreshold, m_MinAspectRatio, m_CenterCoordinatesPtr, m_MajorAxisLengthArrayPtr, m_MinorAxisLengthArrayPtr, m_RotationalAnglesArrayPtr,
                                 m_EllipseFeatureAttributeMatrixPtr);
+      m_ThreadWork[0] = 0;
       impl();
     }
 
@@ -464,6 +469,13 @@ void DetectEllipsoids::execute()
     }
   }
 
+#if 0
+  QMapIterator<int, int> i(m_ThreadWork);
+  while (i.hasNext()) {
+      i.next();
+      std::cout << i.key() << ": " << i.value() << std::endl;
+  }
+#endif
   notifyStatusMessage(getHumanLabel(), "Complete");
 }
 
@@ -1363,13 +1375,23 @@ size_t DetectEllipsoids::getNextFeatureId()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-void DetectEllipsoids::notifyFeatureCompleted()
+void DetectEllipsoids::notifyFeatureCompleted(int featureId, int threadIndex)
 {
+
   m_FeaturesCompletedSem.acquire();
+  m_ThreadWork[threadIndex]++;
   m_FeaturesCompleted++;
-  QString ss = QObject::tr("%1/%2").arg(m_FeaturesCompleted).arg(m_TotalNumberOfFeatures);
+  QString ss = QObject::tr("[%1/%2] %3 Completed:").arg(m_FeaturesCompleted).arg(m_TotalNumberOfFeatures).arg(featureId);
   notifyStatusMessage(getMessagePrefix(), getHumanLabel(), ss);
   m_FeaturesCompletedSem.release();
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+int DetectEllipsoids::getThreadIndex()
+{
+    return m_ThreadIndex++;
 }
 
 // -----------------------------------------------------------------------------
