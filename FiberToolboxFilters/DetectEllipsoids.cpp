@@ -55,7 +55,7 @@
 #include "SIMPLib/FilterParameters/ChoiceFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArrayCreationFilterParameter.h"
 #include "SIMPLib/FilterParameters/DataArraySelectionFilterParameter.h"
-#include "SIMPLib/FilterParameters/DoubleFilterParameter.h"
+#include "SIMPLib/FilterParameters/FloatFilterParameter.h"
 #include "SIMPLib/FilterParameters/IntFilterParameter.h"
 #include "SIMPLib/FilterParameters/StringFilterParameter.h"
 #include "SIMPLib/Geometry/ImageGeom.h"
@@ -145,8 +145,8 @@ void DetectEllipsoids::setupFilterParameters()
 
   parameters.push_back(SIMPL_NEW_INTEGER_FP("Min Fiber Axis Length", MinFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
   parameters.push_back(SIMPL_NEW_INTEGER_FP("Max Fiber Axis Length", MaxFiberAxisLength, FilterParameter::Parameter, DetectEllipsoids));
-  parameters.push_back(SIMPL_NEW_DOUBLE_FP("Threshold for Hough Transform", HoughTransformThreshold, FilterParameter::Parameter, DetectEllipsoids));
-  parameters.push_back(SIMPL_NEW_DOUBLE_FP("Minimum Aspect Ratio", MinAspectRatio, FilterParameter::Parameter, DetectEllipsoids));
+  parameters.push_back(SIMPL_NEW_FLOAT_FP("Threshold for Hough Transform", HoughTransformThreshold, FilterParameter::Parameter, DetectEllipsoids));
+  parameters.push_back(SIMPL_NEW_FLOAT_FP("Minimum Aspect Ratio", MinAspectRatio, FilterParameter::Parameter, DetectEllipsoids));
   parameters.push_back(SIMPL_NEW_INTEGER_FP("Length of Image Scale Bar", ImageScaleBarLength, FilterParameter::Parameter, DetectEllipsoids));
 
   {
