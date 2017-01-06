@@ -1381,7 +1381,7 @@ void DetectEllipsoids::notifyFeatureCompleted(int featureId, int threadIndex)
   m_FeaturesCompletedSem.acquire();
   m_ThreadWork[threadIndex]++;
   m_FeaturesCompleted++;
-  QString ss = QObject::tr("[%1/%2] %3 Completed:").arg(m_FeaturesCompleted).arg(m_TotalNumberOfFeatures).arg(featureId);
+  QString ss = QObject::tr("[%1/%2] Completed:").arg(m_FeaturesCompleted).arg(m_TotalNumberOfFeatures);
   notifyStatusMessage(getMessagePrefix(), getHumanLabel(), ss);
   m_FeaturesCompletedSem.release();
 }
