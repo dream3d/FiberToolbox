@@ -71,12 +71,12 @@
 // Include the MOC generated file for this class
 #include "moc_DetectEllipsoids.cpp"
 
-#define STORE_PIXEL_VALUES(array, count)                                                                                                                                                               \
-  array->setComponent(count, 0, xc + x);                                                                                                                                                               \
-  array->setComponent(count, 1, yc + y);                                                                                                                                                               \
-  count++;                                                                                                                                                                                             \
-  array->setComponent(count, 0, xc - x);                                                                                                                                                               \
-  array->setComponent(count, 1, yc - y);                                                                                                                                                               \
+#define STORE_PIXEL_VALUES(array, count) \
+  array->setComponent(count, 0, xc + x); \
+  array->setComponent(count, 1, yc + y); \
+  count++;                               \
+  array->setComponent(count, 0, xc - x); \
+  array->setComponent(count, 1, yc - y); \
   count++;
 
 double DetectEllipsoids::m_img_scale_length = 588.0;
@@ -1439,7 +1439,7 @@ const QString DetectEllipsoids::getFilterVersion()
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getGroupName()
 {
-  return SIMPL::FilterGroups::Unsupported;
+  return SIMPL::FilterGroups::StatisticsFilters;
 }
 
 // -----------------------------------------------------------------------------
@@ -1455,5 +1455,5 @@ const QString DetectEllipsoids::getSubGroupName()
 // -----------------------------------------------------------------------------
 const QString DetectEllipsoids::getHumanLabel()
 {
-  return "Detect Ellipsoids";
+  return "Detect 2D Ellipses";
 }
