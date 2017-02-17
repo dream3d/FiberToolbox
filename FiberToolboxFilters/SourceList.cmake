@@ -12,13 +12,12 @@ SIMPL_START_FILTER_GROUP(
   REGISTER_KNOWN_FILTERS_FILE ${RegisterKnownFiltersFile}
   FILTER_GROUP "${_filterGroupName}"
   BINARY_DIR ${${PLUGIN_NAME}_BINARY_DIR}
-  )
+)
 
 #---------
 # List your public filters here
 set(_PublicFilters
   DetectEllipsoids
-
 )
 
 
