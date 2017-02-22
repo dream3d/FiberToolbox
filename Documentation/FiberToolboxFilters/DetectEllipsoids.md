@@ -61,8 +61,9 @@ The ellipse detection algorithm has 16 steps.
 16. Plot each ellipse in **Detected Ellipsoids Feature Ids** array.
 
 ## Parameters ##
+
 | Name | Type | Description |
-|------|------|------|
+|------|------|-------------|
 | Min Fiber Axis Length (in units of image scale bar) | Integer | The minimum length of the fiber axis |
 | Max Fiber Axis Length (in units of image scale bar) | Integer | The maximum length of the fiber axis |
 | Threshold for Hough Transform | Double | Threshold used in the Hough Transform algorithm |
@@ -73,14 +74,16 @@ The ellipse detection algorithm has 16 steps.
 Image
 
 ## Required Objects ##
+
 | Kind | Default Name | Type | Component Dimensions | Description |
-|------|--------------|-------------|---------|-----|
+|------|--------------|------|----------------------|-------------|
 | Cell **Attribute Array** | FeatureIds | int32_t | (1) | The Feature Ids array to analyze for ellipsoids |
 | CellFeature **Attribute Array** | Active | bool | (1) | The array that denotes the Feature Ids that are active in the Feature Ids array |
 
 ## Created Objects ##
+
 | Kind | Default Name | Type | Component Dimensions | Description |
-|------|--------------|-------------|---------|-----|
+|------|--------------|------|----------------------|-------------|
 | **Attribute Matrix**  | EllipsoidFeatureAttributeMatrix | Any | N/A | **Attribute Matrix** to store center coordinates, major axis length, minor axis length, and rotational angles arrays  |
 | CellFeature **Attribute Array** | EllipsoidsCenterCoords | int32_t | (2) | The center coordinates array of detected ellipsoids |
 | CellFeature **Attribute Array** | EllipsoidsMajorAxisLength | int32_t | (1) | The major axis length array of detected ellipsoids |
