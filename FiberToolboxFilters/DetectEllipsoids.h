@@ -40,8 +40,8 @@
 
 #include <QtCore/QSemaphore>
 
-#include "SIMPLib/Common/AbstractFilter.h"
 #include "SIMPLib/Common/SIMPLibSetGetMacros.h"
+#include "SIMPLib/Filtering/AbstractFilter.h"
 #include "SIMPLib/SIMPLib.h"
 
 typedef std::vector<std::complex<double>> DE_ComplexDoubleVector;
