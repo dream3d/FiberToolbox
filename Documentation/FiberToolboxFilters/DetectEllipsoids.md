@@ -10,18 +10,18 @@ This **Filter** detects ellipsoids in an existing 2D **Feature Ids** array, and 
 [1] C. P. Przybyla, S. Bricker, J. P. Simmons, and R. Hardie, "Automated Microstructure-Properties Characterization and Simulation in Brittle Matrix Continuous Fiber Reinforced Composites.", **29th Annual Technical Conference of the American Society for Composites 2014**, Vol. 1
 
 ## Ellipse Detection Example ##
-![Feature Ids Array (Figure 1)](Images/feature_ids.png)
-@image latex Images/feature_ids.png "Feature Ids Array (Figure 1)" width=6in
+![Feature Ids Array (Figure 1)](Images/FeatureIds.png)
+@image latex Images/FeatureIds.png "Feature Ids Array (Figure 1)" width=6in
 
 The ellipse detection algorithm processes a 2D **Feature Ids** array that contains objects that are segmented by feature.  **Figure 1** shows a snippet of the original **Feature Ids** array.  Each object in **Figure 1** has an assigned feature id between 1 - 6.
 
-![Detected Ellipsoids Outlines (Figure 2)](Images/ellipse_outlines.png)
-@image latex Images/ellipse_outlines.png "Detected Ellipsoids Outlines (Figure 2)" width=6in
+![Detected Ellipsoids Outlines (Figure 2)](Images/EllipseOutlines.png)
+@image latex Images/EllipseOutlines.png "Detected Ellipsoids Outlines (Figure 2)" width=6in
 
 **Figure 2** contains the outlines of the detected ellipses, which is one of the outputs of this filter.  Some segmented objects may have multiple ellipses in them, so the algorithm separates out each additional ellipse and assigns it a new, unique feature id.  In this case, the algorithm detected two ellipses in feature 4's object, so the second ellipse from feature 4 was assigned a feature id of 7.
 
-![Detected Ellipsoids Overlay (Figure 3)](Images/ellipse_outlines_overlay.png)
-@image latex Images/ellipse_outlines_overlay.png "Detected Ellipsoids Overlay (Figure 3)" width=6in
+![Detected Ellipsoids Overlay (Figure 3)](Images/EllipseOutlinesOverlay.png)
+@image latex Images/EllipseOutlinesOverlay.png "Detected Ellipsoids Overlay (Figure 3)" width=6in
 
 In **Figure 3**, the outlines of the detected ellipses, colored in green, are overlayed on top of the original feature ids array.
 
