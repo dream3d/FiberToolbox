@@ -12,9 +12,6 @@
 
 #include "FiberToolbox/FiberToolboxConstants.h"
 
-// Include the MOC generated file for this class
-#include "moc_FiberToolboxPlugin.cpp"
-
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
@@ -35,9 +32,7 @@ m_DidLoad(false)
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-FiberToolboxPlugin::~FiberToolboxPlugin()
-{
-}
+FiberToolboxPlugin::~FiberToolboxPlugin() = default;
 
 // -----------------------------------------------------------------------------
 //

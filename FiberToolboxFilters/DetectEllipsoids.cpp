@@ -68,9 +68,6 @@
 #include <cmath>
 #include <limits>
 
-// Include the MOC generated file for this class
-#include "moc_DetectEllipsoids.cpp"
-
 #define STORE_PIXEL_VALUES(array, count) \
   array->setComponent(count, 0, xc + x); \
   array->setComponent(count, 1, yc + y); \
@@ -112,9 +109,7 @@ DetectEllipsoids::DetectEllipsoids()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoids::~DetectEllipsoids()
-{
-}
+DetectEllipsoids::~DetectEllipsoids() = default;
 
 // -----------------------------------------------------------------------------
 //

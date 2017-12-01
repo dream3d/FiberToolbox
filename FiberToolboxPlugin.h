@@ -138,8 +138,8 @@ class FiberToolboxPlugin : public QObject, public ISIMPLibPlugin
     QList<QString>      m_Filters;
     bool                m_DidLoad;
 
-    FiberToolboxPlugin(const FiberToolboxPlugin&); // Copy Constructor Not Implemented
-    void operator=(const FiberToolboxPlugin&); // Operator '=' Not Implemented
+    FiberToolboxPlugin(const FiberToolboxPlugin&) = delete; // Copy Constructor Not Implemented
+    void operator=(const FiberToolboxPlugin&) = delete;     // Operator '=' Not Implemented
 };
 
 #endif /* _FiberToolbox_H_ */

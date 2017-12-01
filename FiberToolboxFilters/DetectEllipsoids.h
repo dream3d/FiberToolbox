@@ -328,7 +328,7 @@ private:
    */
   void ind2sub(QVector<size_t> tDims, size_t index, size_t& x, size_t& y, size_t& z) const;
 
-  DetectEllipsoids(const DetectEllipsoids&); // Copy Constructor Not Implemented
+  DetectEllipsoids(const DetectEllipsoids&) = delete; // Copy Constructor Not Implemented
   void operator=(const DetectEllipsoids&);   // Operator '=' Not Implemented
 };
 

@@ -74,9 +74,7 @@ DetectEllipsoidsImpl::DetectEllipsoidsImpl(int threadIndex, DetectEllipsoids* fi
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-DetectEllipsoidsImpl::~DetectEllipsoidsImpl()
-{
-}
+DetectEllipsoidsImpl::~DetectEllipsoidsImpl() = default;
 
 // -----------------------------------------------------------------------------
 //
