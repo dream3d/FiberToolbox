@@ -13,7 +13,7 @@ namespace FiberToolboxConstants
 {
   const QString FiberToolboxPluginFile("FiberToolboxPlugin");
   const QString FiberToolboxPluginDisplayName("FiberToolboxPlugin");
-  const QString FiberToolboxBaseName("FiberToolboxPlugin");
+  const QString FiberToolboxBaseName("FiberToolbox");
 
   namespace FilterGroups
   {
