@@ -14,7 +14,6 @@ set(${PLUGIN_NAME}Test_BINARY_DIR ${${PLUGIN_NAME}_BINARY_DIR}/Test)
 # they will show up in IDEs
 set(TEST_NAMES
   DetectEllipsoidsTest
-
 )
 
 #------------------------------------------------------------------------------
@@ -27,7 +26,6 @@ get_filename_component(${PLUGIN_NAME}_PARENT_SOURCE_DIR "${${PLUGIN_NAME}_SOURCE
 get_filename_component(${PLUGIN_NAME}_PARENT_BINARY_DIR "${${PLUGIN_NAME}_BINARY_DIR}" DIRECTORY)
 
 SIMPL_GenerateUnitTestFile(PLUGIN_NAME ${PLUGIN_NAME}
-                           TEST_DATA_DIR ${${PLUGIN_NAME}_SOURCE_DIR}/Test/Data
                            SOURCES ${TEST_NAMES}
                            LINK_LIBRARIES Qt5::Core Qt5::Gui H5Support SIMPLib
                            INCLUDE_DIRS ${${PLUGIN_NAME}_PARENT_SOURCE_DIR}
