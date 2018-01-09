@@ -2,14 +2,17 @@ Detect Ellipsoids {#detectellipsoids}
 =============
 
 ## Group (Subgroup) ##
+
 FiberToolbox (FiberToolbox)
 
 ## Description ##
+
 This **Filter** detects ellipsoids in an existing 2D **Feature Ids** array, and outputs a new 2D **Detected Ellipsoids Feature Ids** array that contains the outlines of all the ellipses that were found, as well as several other arrays that contain center coordinate, major axis length, minor axis length, and rotational angle values.  The algorithm is based on a 1D accumulation array, and is described in the following paper:
 
 [1] C. P. Przybyla, S. Bricker, J. P. Simmons, and R. Hardie, "Automated Microstructure-Properties Characterization and Simulation in Brittle Matrix Continuous Fiber Reinforced Composites.", **29th Annual Technical Conference of the American Society for Composites 2014**, Vol. 1
 
 ## Ellipse Detection Example ##
+
 ![Feature Ids Array (Figure 1)](Images/FeatureIds.png)
 @image latex Images/FeatureIds.png "Feature Ids Array (Figure 1)" width=6in
 
@@ -26,6 +29,7 @@ The ellipse detection algorithm processes a 2D **Feature Ids** array that contai
 In **Figure 3**, the outlines of the detected ellipses, colored in green, are overlayed on top of the original feature ids array.
 
 ## Algorithm ##
+
 The ellipse detection algorithm has 16 steps.
 
 1. Find corner coordinates of each feature id and use them to calculate each feature id object's dimensions
@@ -71,6 +75,7 @@ The ellipse detection algorithm has 16 steps.
 | Length of Image Scale Bar (in units of image scale bar) | Integer | Length of the Image Scale Bar |
 
 ## Required Geometry ##
+
 Image
 
 ## Required Objects ##
@@ -98,4 +103,3 @@ Please see the description file distributed with this plugin.
 ## DREAM3D Mailing Lists ##
 
 If you need more help with a filter, please consider asking your question on the DREAM3D Users mailing list:
-https://groups.google.com/forum/?hl=en#!forum/dream3d-users
