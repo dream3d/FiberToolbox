@@ -37,10 +37,27 @@ FiberToolboxPlugin::~FiberToolboxPlugin() = default;
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-QString FiberToolboxPlugin::getPluginName()
+QString FiberToolboxPlugin::getPluginFileName()
 {
-  return (FiberToolboxConstants::FiberToolboxPluginDisplayName);
+  return FiberToolboxConstants::FiberToolboxPluginFile;
 }
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+QString FiberToolboxPlugin::getPluginDisplayName()
+{
+  return FiberToolboxConstants::FiberToolboxPluginDisplayName;
+}
+
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+QString FiberToolboxPlugin::getPluginBaseName()
+{
+  return FiberToolboxConstants::FiberToolboxBaseName;
+}
+
 
 // -----------------------------------------------------------------------------
 //
