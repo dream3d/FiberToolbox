@@ -96,6 +96,10 @@ Image
 | CellFeature **Attribute Array** | EllipsoidsRotationalAngles | int32_t | (1) | The rotational angles array of detected ellipsoids |
 | Cell **Attribute Array** | DetectedEllipsoids | int32_t | (1) | The Feature Ids array that contains detected ellipsoids |
 
+## Example Pipelines ##
+
+
+
 ## License & Copyright ##
 
 Please see the description file distributed with this plugin.
