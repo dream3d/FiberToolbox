@@ -1394,7 +1394,7 @@ int DetectEllipsoids::getThreadIndex()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-AbstractFilter::Pointer DetectEllipsoids::newFilterInstance(bool copyFilterParameters)
+AbstractFilter::Pointer DetectEllipsoids::newFilterInstance(bool copyFilterParameters) const
 {
   DetectEllipsoids::Pointer filter = DetectEllipsoids::New();
   if(true == copyFilterParameters)
@@ -1407,7 +1407,7 @@ AbstractFilter::Pointer DetectEllipsoids::newFilterInstance(bool copyFilterParam
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getCompiledLibraryName()
+const QString DetectEllipsoids::getCompiledLibraryName() const
 {
   return FiberToolboxConstants::FiberToolboxBaseName;
 }
@@ -1415,7 +1415,7 @@ const QString DetectEllipsoids::getCompiledLibraryName()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getBrandingString()
+const QString DetectEllipsoids::getBrandingString() const
 {
   return "FiberToolbox";
 }
@@ -1423,7 +1423,7 @@ const QString DetectEllipsoids::getBrandingString()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getFilterVersion()
+const QString DetectEllipsoids::getFilterVersion() const
 {
   QString version;
   QTextStream vStream(&version);
@@ -1434,7 +1434,7 @@ const QString DetectEllipsoids::getFilterVersion()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getGroupName()
+const QString DetectEllipsoids::getGroupName() const
 {
   return SIMPL::FilterGroups::StatisticsFilters;
 }
@@ -1450,7 +1450,7 @@ const QUuid DetectEllipsoids::getUuid()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getSubGroupName()
+const QString DetectEllipsoids::getSubGroupName() const
 {
   return "FiberToolbox";
 }
@@ -1458,7 +1458,7 @@ const QString DetectEllipsoids::getSubGroupName()
 // -----------------------------------------------------------------------------
 //
 // -----------------------------------------------------------------------------
-const QString DetectEllipsoids::getHumanLabel()
+const QString DetectEllipsoids::getHumanLabel() const
 {
   return "Detect 2D Ellipses";
 }
