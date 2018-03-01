@@ -198,7 +198,7 @@ void DetectEllipsoids::dataCheck()
   m_DetectedEllipsoidsFeatureIdsPtr =
       getDataContainerArray()->createNonPrereqArrayFromPath<Int32ArrayType, AbstractFilter, int32_t>(this, m_DetectedEllipsoidsFeatureIdsArrayPath, 0, QVector<size_t>(1, 1));
 
-  DataContainer::Pointer ellipseDC = getDataContainerArray()->getPrereqDataContainer<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
+  DataContainer::Pointer ellipseDC = getDataContainerArray()->getPrereqDataContainer(this, m_EllipseFeatureAttributeMatrixPath.getDataContainerName());
   if(getErrorCondition() < 0)
   {
     return;
@@ -213,7 +213,7 @@ void DetectEllipsoids::dataCheck()
 
   m_TotalNumberOfFeatures = featureAM->getNumberOfTuples();
 
-  m_EllipseFeatureAttributeMatrixPtr = ellipseDC->createNonPrereqAttributeMatrix<AbstractFilter>(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(),
+  m_EllipseFeatureAttributeMatrixPtr = ellipseDC->createNonPrereqAttributeMatrix(this, m_EllipseFeatureAttributeMatrixPath.getAttributeMatrixName(),
                                                                                                  QVector<size_t>(1, m_TotalNumberOfFeatures + 1), AttributeMatrix::Type::CellFeature);
 
   DataArrayPath tmp = m_EllipseFeatureAttributeMatrixPath;
