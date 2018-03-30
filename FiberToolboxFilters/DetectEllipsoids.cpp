@@ -82,8 +82,7 @@ double DetectEllipsoids::m_img_scale_length = 588.0;
 //
 // -----------------------------------------------------------------------------
 DetectEllipsoids::DetectEllipsoids()
-: AbstractFilter()
-, m_EllipseFeatureAttributeMatrixPath("", "", "")
+: m_EllipseFeatureAttributeMatrixPath("", "", "")
 , m_CenterCoordinatesArrayName("EllipsoidsCenterCoords")
 , m_MajorAxisLengthArrayName("EllipsoidsMajorAxisLength")
 , m_MinorAxisLengthArrayName("EllipsoidsMinorAxisLength")
