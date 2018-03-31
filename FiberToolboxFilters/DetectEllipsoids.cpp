@@ -102,7 +102,6 @@ DetectEllipsoids::DetectEllipsoids()
 , m_FeaturesCompletedSem(1)
 {
   initialize();
-  setupFilterParameters();
 }
 
 // -----------------------------------------------------------------------------
