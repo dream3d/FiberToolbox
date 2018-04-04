@@ -230,8 +230,6 @@ class DetectEllipsoidsTest
 
   private:
     DetectEllipsoidsTest(const DetectEllipsoidsTest&); // Copy Constructor Not Implemented
-    void operator=(const DetectEllipsoidsTest&); // Operator '=' Not Implemented
-
-
+    void operator=(const DetectEllipsoidsTest&);       // Move assignment Not Implemented
 };
 

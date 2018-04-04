@@ -157,7 +157,7 @@ class FiberToolboxPlugin : public QObject, public ISIMPLibPlugin
     bool                m_DidLoad;
 
     FiberToolboxPlugin(const FiberToolboxPlugin&) = delete; // Copy Constructor Not Implemented
-    void operator=(const FiberToolboxPlugin&) = delete;     // Operator '=' Not Implemented
+    void operator=(const FiberToolboxPlugin&) = delete;     // Move assignment Not Implemented
 };
 
 #endif /* _FiberToolbox_H_ */
