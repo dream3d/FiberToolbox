@@ -63,7 +63,7 @@
 
 #include "FiberToolbox/FiberToolboxConstants.h"
 #include "FiberToolbox/FiberToolboxVersion.h"
-#include "FiberToolbox/HelperClasses/DetectEllipsoidsImpl.h"
+#include "FiberToolboxFilters/HelperClasses/DetectEllipsoidsImpl.h"
 
 #include <cmath>
 #include <limits>

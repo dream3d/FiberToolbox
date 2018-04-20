@@ -221,7 +221,11 @@ void FiberToolboxPlugin::readSettings(QSettings& prefs)
 {
 }
 
+// -----------------------------------------------------------------------------
+//
+// -----------------------------------------------------------------------------
+void FiberToolboxPlugin::registerFilterWidgets(FilterWidgetManager* fwm)
+{
+}
+
 #include "FiberToolboxFilters/RegisterKnownFilters.cpp"
-
-#include "FilterParameterWidgets/RegisterKnownFilterParameterWidgets.cpp"
-

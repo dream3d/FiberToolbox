@@ -53,6 +53,9 @@ foreach(f ${_PrivateFilters} )
 endforeach()
 
 
+ADD_SIMPL_SUPPORT_CLASS(${${PLUGIN_NAME}_SOURCE_DIR} ${_filterGroupName}/HelperClasses ComputeGradient)
+ADD_SIMPL_SUPPORT_CLASS(${${PLUGIN_NAME}_SOURCE_DIR} ${_filterGroupName}/HelperClasses DetectEllipsoidsImpl)
+
 
 #---------------------
 # This macro must come last after we are done adding all the filters and support files.
