@@ -10,10 +10,13 @@
 
 #include "SIMPLib/Plugin/ISIMPLibPlugin.h"
 
+#include "FiberToolbox/FiberToolboxDLLExport.h"
+
 /**
  * @brief The FiberToolboxPlugin class
  */
-class FiberToolboxPlugin : public QObject, public ISIMPLibPlugin
+class FiberToolbox_EXPORT FiberToolboxPlugin : public QObject, public ISIMPLibPlugin
+
 {
     Q_OBJECT
     Q_INTERFACES(ISIMPLibPlugin)

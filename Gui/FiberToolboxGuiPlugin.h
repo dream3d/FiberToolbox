@@ -10,7 +10,13 @@ class FiberToolboxGuiPlugin : public FiberToolboxPlugin
 
 public:
   FiberToolboxGuiPlugin();
-  ~FiberToolboxGuiPlugin() override;
+   ~FiberToolboxGuiPlugin() override;
+  
+  /**
+   * @brief Register all the filters with the FilterWidgetFactory
+   */
+  void registerFilterWidgets(FilterWidgetManager* fwm) override;
+  
 
 public:
   FiberToolboxGuiPlugin(const FiberToolboxGuiPlugin&) = delete;            // Copy Constructor Not Implemented
