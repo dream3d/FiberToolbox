@@ -427,7 +427,7 @@ void DetectEllipsoids::execute()
       impl();
     }
 
-    if(getCancel() == true)
+    if(getCancel())
     {
       return;
     }
