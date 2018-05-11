@@ -48,10 +48,12 @@ typedef std::vector<std::complex<double>> DE_ComplexDoubleVector;
 
 class DetectEllipsoidsImpl;
 
+#include "FiberToolbox/FiberToolboxDLLExport.h"
+
 /**
  * @brief The DetectEllipsoids class. See [Filter documentation](@ref fibertoolboxfilter) for details.
  */
-class DetectEllipsoids : public AbstractFilter
+class FiberToolbox_EXPORT DetectEllipsoids : public AbstractFilter
 {
   Q_OBJECT
   PYB11_CREATE_BINDINGS(DetectEllipsoids SUPERCLASS AbstractFilter)
