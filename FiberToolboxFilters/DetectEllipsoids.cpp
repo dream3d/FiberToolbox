@@ -403,7 +403,7 @@ void DetectEllipsoids::execute()
 
     if(doParallel == true)
     {
-      tbb::task_group* g = new tbb::task_group;
+      std::shared_ptr<tbb::task_group> g(new tbb::task_group);
       int threads = init.default_num_threads();
 
       for(int i = 0; i < threads; i++)
@@ -415,7 +415,7 @@ void DetectEllipsoids::execute()
       }
 
       g->wait();
-      delete g;
+      
     }
     else
 #endif
