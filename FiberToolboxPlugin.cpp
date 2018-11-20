@@ -26,7 +26,6 @@ m_Copyright("Copyright"),                               // Initialize FiberToolb
 m_Filters(QList<QString>()),                        // Initialize FiberToolbox's List of Dependencies Here
 m_DidLoad(false)
 {
-
 }
 
 // -----------------------------------------------------------------------------
