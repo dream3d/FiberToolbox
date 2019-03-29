@@ -310,7 +310,7 @@ void DetectEllipsoids::execute()
           {
             setErrorCondition(-31000);
             QString ss = QObject::tr("The feature attribute matrix '%1' has a smaller tuple count than the maximum feature id in '%2'").arg(featureAM->getName()).arg(cellFeatureIds->getName());
-            notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
+            notifyErrorMessage(ss, getErrorCondition());
             return;
           }
 
@@ -364,7 +364,7 @@ void DetectEllipsoids::execute()
     {
       setErrorCondition(-31001);
       QString ss = QObject::tr("There was an internal error.  Please ask the DREAM.3D developers for more information.");
-      notifyErrorMessage(getHumanLabel(), ss, getErrorCondition());
+      notifyErrorMessage(ss, getErrorCondition());
     }
 
     // This convolution function fills the convCoords_X, convCoords_Y, and convCoords_Z arrays with values
