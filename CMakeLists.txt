@@ -1,7 +1,7 @@
 #--////////////////////////////////////////////////////////////////////////////
 #-- Your License or Copyright can go here
 #--////////////////////////////////////////////////////////////////////////////
-
+message(FATAL_ERROR "The filters have been moved to DREAM3D/Processing Plugin. DO NOT USE THIS PLUGIN")
 set(PLUGIN_NAME FiberToolbox)
 set(${PLUGIN_NAME}_VERSION "1.0")
 set(${PLUGIN_NAME}_VERSION_MAJOR "1")
